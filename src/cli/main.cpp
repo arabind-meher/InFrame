@@ -1,8 +1,14 @@
 #include <iostream>
 
 #include "scanner.h"
+#include "image_loader.h"
+
+#include <opencv2/core/utils/logger.hpp>
+
 
 int main(int argc, char *argv[]) {
+    cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_WARNING);
+
     if (argc != 2) {
         std::cerr << "Usage: inframe <folder>" << std::endl;
         return 2;
@@ -14,11 +20,25 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    std::vector<std::filesystem::path> images = find_images(directory);
-    for (const auto &image: images) {
-        std::cout << image.string() << std::endl;
+    int loaded = 0;
+    int skipped = 0;
+
+    std::vector<std::filesystem::path> images_paths = find_images(directory);
+    for (const auto &image_path: images_paths) {
+        cv::Mat image = load_image(image_path, 1280);
+
+        if (image.empty()) {
+            skipped++;
+            std::cout << "Skipped: " << image_path.string() << std::endl;
+            continue;
+        }
+
+        loaded++;
+        std::cout << "Loaded: " << image_path.string() << std::endl;
     }
-    std::cout << "Found " << images.size() << " images" << std::endl;
+    std::cout << std::endl
+            << "Loaded: " << loaded << " Images" << std::endl
+            << "Skipped: " << skipped << " Images" << std::endl;
 
     return 0;
 }
