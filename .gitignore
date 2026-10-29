@@ -66,3 +66,26 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# CLion / JetBrains
+.idea/
+cmake-build-*/
+
+# CMake / MSVC / Visual Studio
+out/
+.vs/
+CMakeUserPresets.json
+*.vcxproj.user
+*.suo
+
+# ML model files (downloaded during setup)
+*.onnx
+
+# Photos and albums (never committed)
+albums/
+album/
+photos/
+images/
+
+# Scratch files (sample images, outputs)
+tmp/

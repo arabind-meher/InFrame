@@ -22,6 +22,25 @@ seconds. It runs entirely on your machine, so no photos or face data are ever up
 - Command-line interface first, with a desktop app to follow
 - Runs on Windows
 
+## Building
+
+Prerequisites (Windows):
+
+- Visual Studio Build Tools (with the "Desktop development with C++" workload)
+- Git
+- CLion or CMake (3.21+) with Ninja
+- [vcpkg](https://github.com/microsoft/vcpkg) cloned and bootstrapped, with the
+  `VCPKG_ROOT` environment variable pointing to it
+
+Dependencies (OpenCV) are installed automatically by vcpkg on first configure.
+Build with the debug preset from a "x64 Native Tools Command Prompt for VS" (or let CLion
+load the preset):
+
+```
+cmake --preset debug
+cmake --build cmake-build-debug
+```
+
 ## Privacy
 
 - Everything runs locally. No cloud services, no uploads, no network calls with your
