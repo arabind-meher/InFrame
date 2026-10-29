@@ -9,7 +9,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(OpenCV CONFIG REQUIRED)
 
 # Core logic, kept separate from the CLI so a future GUI can reuse it.
-add_library(inframe_core STATIC src/core/core.cpp)
+add_library(
+        inframe_core STATIC
+        src/core/scanner.cpp
+        src/core/scanner.h
+)
 target_include_directories(inframe_core PUBLIC src/core)
 target_link_libraries(inframe_core PUBLIC opencv_core PRIVATE opencv_imgcodecs)
 
