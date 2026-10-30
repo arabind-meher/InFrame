@@ -23,6 +23,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // Model files, relative to the working directory.
     const std::filesystem::path model_path("models");
 
     std::filesystem::path face_detection_model_path = model_path / "face_detection_yunet_2023mar.onnx";
@@ -40,6 +41,7 @@ int main(int argc, char *argv[]) {
     int loaded = 0;
     int skipped = 0;
 
+    // Load models once, reuse for every image.
     FaceDetector detector(face_detection_model_path);
     FaceRecognizer recognizer(face_recognition_model_path);
 
@@ -51,6 +53,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // The reference photo must show exactly one face: the person to look for.
     cv::Mat ref_image = load_image(ref_image_path, 1280);
     std::vector<Face> ref_image_face = detector.detect(ref_image);
     if (ref_image_face.size() != 1) {
@@ -68,6 +71,7 @@ int main(int argc, char *argv[]) {
             continue;
         }
 
+        // Best and worst match against the reference among this photo's faces.
         double best_similarity_score = -1.1;
         double least_similarity_score = 1.1;
         std::vector<Face> faces = detector.detect(image);

@@ -6,12 +6,14 @@ FaceRecognizer::FaceRecognizer(const std::filesystem::path &model_path)
 }
 
 cv::Mat FaceRecognizer::embed(const cv::Mat &image, const Face &face) {
+    // Straighten and crop the face using its landmarks.
     cv::Mat aligned;
     recognizer_->alignCrop(image, face.detection, aligned);
 
     cv::Mat embedding;
     recognizer_->feature(aligned, embedding);
 
+    // Copy, because feature() may reuse its output buffer.
     return embedding.clone();
 }
 

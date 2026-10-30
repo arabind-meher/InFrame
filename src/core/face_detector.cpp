@@ -10,7 +10,7 @@ std::vector<Face> FaceDetector::detect(const cv::Mat &image) {
     detector_->setInputSize(image.size());
     detector_->detect(image, faces);
 
-    // Each row of faces is one face: x, y, width, height, 5 landmarks, score.
+    // One row per face: x, y, width, height, 5 landmarks, score.
     std::vector<Face> result;
     for (int i = 0; i < faces.rows; i++) {
         int x = static_cast<int>(faces.at<float>(i, 0));

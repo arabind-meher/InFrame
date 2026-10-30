@@ -4,12 +4,13 @@
 #include <cctype>
 #include <string>
 
-// Image file extensions the scanner accepts (lowercase)
+
+// Accepted image extensions (lowercase).
 static const std::array<std::string, 4> image_extensions = {
     ".jpg", ".jpeg", ".png", ".bmp"
 };
 
-// True if the file has one of the image extensions, ignoring case.
+// True if file has an image extension (any case).
 static bool is_image(const std::filesystem::path &file) {
     std::string ext = file.extension().string();
     for (char &c: ext) {
@@ -24,7 +25,6 @@ static bool is_image(const std::filesystem::path &file) {
     return false;
 }
 
-// Returns all image files in directory and its subfolders
 std::vector<std::filesystem::path> find_images(const std::filesystem::path &directory) {
     std::vector<std::filesystem::path> images;
 
