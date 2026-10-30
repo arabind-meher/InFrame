@@ -4,6 +4,7 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
+
 cv::Mat load_image(const std::filesystem::path &file, int max_dimension) {
     cv::Mat image = cv::imread(file.string(), cv::IMREAD_COLOR);
 

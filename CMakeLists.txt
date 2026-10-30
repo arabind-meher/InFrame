@@ -18,6 +18,8 @@ add_library(
         src/core/image_loader.h
         src/core/face_detector.cpp
         src/core/face_detector.h
+        src/core/face_recognizer.cpp
+        src/core/face_recognizer.h
 )
 target_include_directories(inframe_core PUBLIC src/core)
 target_link_libraries(
