@@ -23,8 +23,8 @@ int main(int argc, char *argv[]) {
     int loaded = 0;
     int skipped = 0;
 
-    std::vector<std::filesystem::path> images_paths = find_images(directory);
-    for (const auto &image_path: images_paths) {
+    std::vector<std::filesystem::path> image_paths = find_images(directory);
+    for (const auto &image_path: image_paths) {
         cv::Mat image = load_image(image_path, 1280);
 
         if (image.empty()) {
@@ -34,7 +34,7 @@ int main(int argc, char *argv[]) {
         }
 
         loaded++;
-        std::cout << "Loaded: " << image_path.string() << std::endl;
+        std::cout << "Loaded: " << image_path.string() << " - " << image.cols << " x " << image.rows << std::endl;
     }
     std::cout << std::endl
             << "Loaded: " << loaded << " Images" << std::endl
