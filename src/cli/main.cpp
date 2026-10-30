@@ -2,6 +2,7 @@
 
 #include "scanner.h"
 #include "image_loader.h"
+#include "face_detector.h"
 
 #include <opencv2/core/utils/logger.hpp>
 
@@ -20,9 +21,17 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+
+    std::filesystem::path model_path = "models/face_detection_yunet_2023mar.onnx";
+    if (!std::filesystem::exists(model_path)) {
+        std::cerr << "Model not found: " << model_path.string() << std::endl;
+        return 1;
+    }
+
     int loaded = 0;
     int skipped = 0;
 
+    FaceDetector detector(model_path);
     std::vector<std::filesystem::path> image_paths = find_images(directory);
     for (const auto &image_path: image_paths) {
         cv::Mat image = load_image(image_path, 1280);
@@ -33,8 +42,12 @@ int main(int argc, char *argv[]) {
             continue;
         }
 
+        std::vector<cv::Rect> face_rects = detector.detect(image);
         loaded++;
-        std::cout << "Loaded: " << image_path.string() << " - " << image.cols << " x " << image.rows << std::endl;
+        std::cout << "Loaded: " << image_path.string() << " - "
+                << image.cols << " x " << image.rows << " - "
+                << face_rects.size() << " faces detected"
+                << std::endl;
     }
     std::cout << std::endl
             << "Loaded: " << loaded << " Images" << std::endl
