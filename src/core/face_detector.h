@@ -5,6 +5,12 @@
 #include <opencv2/core.hpp>
 #include <opencv2/objdetect.hpp>
 
+
+struct Face {
+    cv::Rect box;
+    cv::Mat detection;
+};
+
 // Detects faces in images using the YuNet model. Load once, reuse for many images.
 class FaceDetector {
 public:
@@ -12,7 +18,7 @@ public:
     FaceDetector(const std::filesystem::path &model_path);
 
     // Returns one box per face found in image.
-    std::vector<cv::Rect> detect(const cv::Mat &image);
+    std::vector<Face> detect(const cv::Mat &image);
 
 private:
     // The loaded model, kept between detect() calls.
