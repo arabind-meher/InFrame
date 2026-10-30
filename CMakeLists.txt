@@ -10,14 +10,25 @@ find_package(OpenCV CONFIG REQUIRED)
 
 # Core logic, kept separate from the CLI so a future GUI can reuse it.
 add_library(
-        inframe_core STATIC
-        src/core/scanner.h
+        inframe_core
+        STATIC
         src/core/scanner.cpp
-        src/core/image_loader.h
+        src/core/scanner.h
         src/core/image_loader.cpp
+        src/core/image_loader.h
+        src/core/face_detector.cpp
+        src/core/face_detector.h
 )
 target_include_directories(inframe_core PUBLIC src/core)
-target_link_libraries(inframe_core PUBLIC opencv_core PRIVATE opencv_imgcodecs opencv_imgproc)
+target_link_libraries(
+        inframe_core
+        PUBLIC
+        opencv_core
+        opencv_objdetect
+        PRIVATE
+        opencv_imgcodecs
+        opencv_imgproc
+)
 
 # Command-line program.
 add_executable(inframe src/cli/main.cpp)
