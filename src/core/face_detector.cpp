@@ -1,11 +1,9 @@
 #include "face_detector.h"
 
+FaceDetector::FaceDetector(const std::filesystem::path& model_path)
+    : detector_(cv::FaceDetectorYN::create(model_path.string(), "", cv::Size(320, 320))) {}
 
-FaceDetector::FaceDetector(const std::filesystem::path &model_path)
-    : detector_(cv::FaceDetectorYN::create(model_path.string(), "", cv::Size(320, 320))) {
-}
-
-std::vector<Face> FaceDetector::detect(const cv::Mat &image) {
+std::vector<Face> FaceDetector::detect(const cv::Mat& image) {
     cv::Mat faces;
     detector_->setInputSize(image.size());
     detector_->detect(image, faces);

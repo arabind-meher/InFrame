@@ -3,6 +3,5 @@
 #include <filesystem>
 #include <vector>
 
-
 // Returns image files in directory and its subfolders.
-std::vector<std::filesystem::path> find_images(const std::filesystem::path &directory);
+std::vector<std::filesystem::path> find_images(const std::filesystem::path& directory);

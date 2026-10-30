@@ -1,15 +1,13 @@
+#include <iomanip>
 #include <iostream>
+#include <opencv2/core/utils/logger.hpp>
 
-#include "scanner.h"
-#include "image_loader.h"
 #include "face_detector.h"
 #include "face_recognizer.h"
+#include "image_loader.h"
+#include "scanner.h"
 
-#include <opencv2/core/utils/logger.hpp>
-#include <iomanip>
-
-
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_WARNING);
 
     if (argc != 3) {
@@ -26,13 +24,15 @@ int main(int argc, char *argv[]) {
     // Model files, relative to the working directory.
     const std::filesystem::path model_path("models");
 
-    std::filesystem::path face_detection_model_path = model_path / "face_detection_yunet_2023mar.onnx";
+    std::filesystem::path face_detection_model_path =
+        model_path / "face_detection_yunet_2023mar.onnx";
     if (!std::filesystem::exists(face_detection_model_path)) {
         std::cerr << "Model not found: " << face_detection_model_path.string() << std::endl;
         return 1;
     }
 
-    std::filesystem::path face_recognition_model_path = model_path / "face_recognition_sface_2021dec.onnx";
+    std::filesystem::path face_recognition_model_path =
+        model_path / "face_recognition_sface_2021dec.onnx";
     if (!std::filesystem::exists(face_recognition_model_path)) {
         std::cerr << "Model not found: " << face_recognition_model_path.string() << std::endl;
         return 1;
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
     }
     cv::Mat ref_image_embedding = recognizer.embed(ref_image, ref_image_face.at(0));
 
-    for (const auto &image_path: image_paths) {
+    for (const auto& image_path : image_paths) {
         cv::Mat image = load_image(image_path, 1280);
 
         if (image.empty()) {
@@ -76,23 +76,27 @@ int main(int argc, char *argv[]) {
         double least_similarity_score = 1.1;
         std::vector<Face> faces = detector.detect(image);
         // if (faces.empty()) {continue;}
-        for (const auto &face: faces) {
+        for (const auto& face : faces) {
             cv::Mat face_embedding = recognizer.embed(image, face);
-            double face_similarity_score = recognizer.similarity(face_embedding, ref_image_embedding);
-            if (face_similarity_score > best_similarity_score) { best_similarity_score = face_similarity_score; }
-            if (face_similarity_score < least_similarity_score) { least_similarity_score = face_similarity_score; }
+            double face_similarity_score =
+                recognizer.similarity(face_embedding, ref_image_embedding);
+            if (face_similarity_score > best_similarity_score) {
+                best_similarity_score = face_similarity_score;
+            }
+            if (face_similarity_score < least_similarity_score) {
+                least_similarity_score = face_similarity_score;
+            }
         }
 
         loaded++;
-        std::cout << "Loaded: " << image_path.string() << " - "
-                << image.cols << " x " << image.rows << " - "
-                << faces.size() << " faces detected" << " - "
-                << "best (" << best_similarity_score << ") | least (" << least_similarity_score << ")"
-                << std::endl;
+        std::cout << "Loaded: " << image_path.string() << " - " << image.cols << " x " << image.rows
+                  << " - " << faces.size() << " faces detected" << " - "
+                  << "best (" << best_similarity_score << ") | least (" << least_similarity_score
+                  << ")" << std::endl;
     }
     std::cout << std::endl
-            << "Loaded: " << loaded << " Images" << std::endl
-            << "Skipped: " << skipped << " Images" << std::endl;
+              << "Loaded: " << loaded << " Images" << std::endl
+              << "Skipped: " << skipped << " Images" << std::endl;
 
     return 0;
 }
