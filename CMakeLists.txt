@@ -12,8 +12,8 @@ find_package(OpenCV CONFIG REQUIRED)
 add_library(
         inframe_core
         STATIC
-        src/core/scanner.cpp
-        src/core/scanner.h
+        src/core/image_scanner.cpp
+        src/core/image_scanner.h
         src/core/image_loader.cpp
         src/core/image_loader.h
         src/core/face_detector.cpp

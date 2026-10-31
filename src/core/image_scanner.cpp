@@ -1,8 +1,8 @@
-#include "scanner.h"
-
 #include <array>
 #include <cctype>
 #include <string>
+
+#include "image_scanner.h"
 
 // Accepted image extensions (lowercase).
 static const std::array<std::string, 4> image_extensions = {".jpg", ".jpeg", ".png", ".bmp"};
