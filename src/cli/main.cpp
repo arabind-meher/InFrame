@@ -6,6 +6,7 @@
 #include "face_recognizer.h"
 #include "image_loader.h"
 #include "image_scanner.h"
+#include "photo_tagger.h"
 
 // Images are shrunk to this size before detection.
 static constexpr int kMaxDimension = 1280;
@@ -93,7 +94,12 @@ int main(int argc, char* argv[]) {
 
     // Destination Directory (testing only)
     std::filesystem::path destination_dir(destinationPath);
-    if (!directory_exists(destination_dir)) std::filesystem::create_directory(destination_dir);
+    if (directory_exists(destination_dir)) {
+        std::filesystem::remove_all(destination_dir);
+        std::filesystem::create_directory(destination_dir);
+    } else {
+        std::filesystem::create_directory(destination_dir);
+    }
 
     // Model Directory
     std::filesystem::path model_path(kModelPath);
@@ -142,11 +148,13 @@ int main(int argc, char* argv[]) {
         double best_score =
             best_score_from_image(image, image_faces, recognizer, reference_embeddings);
 
+        PhotoTag image_tag = classify_photo(image_faces);
+
         // A photo matches if any face is close enough to any reference.
         if (best_score >= kMatchThreshold) {
             matching_paths.push_back(image_path);
-            std::cout << "MATCHED: (" << image_faces.size() << " faces)[" << best_score << "] "
-                      << image_path.string() << std::endl;
+            std::cout << "MATCHED: (" << image_faces.size() << " faces)[" << best_score << "] ["
+                      << photo_tag_name(image_tag) << "] " << image_path.string() << std::endl;
             matched++;
         }
     }
