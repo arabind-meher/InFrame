@@ -24,6 +24,8 @@ add_library(
         src/core/album_directory.h
         src/core/reference_directory.cpp
         src/core/reference_directory.h
+        src/core/output_directory.cpp
+        src/core/output_directory.h
 )
 target_include_directories(inframe_core PUBLIC src/core)
 target_link_libraries(

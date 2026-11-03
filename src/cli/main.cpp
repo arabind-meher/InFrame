@@ -5,6 +5,7 @@
 #include "album_directory.h"
 #include "face_detector.h"
 #include "face_recognizer.h"
+#include "output_directory.h"
 #include "photo_tagger.h"
 #include "reference_directory.h"
 
@@ -12,8 +13,6 @@
 static constexpr int kMaxDimension = 1280;
 // Model folder, relative to the working directory.
 static std::string kModelPath("models");
-// Testing only: matched photos are copied here for manual checking.
-static std::filesystem::path destinationPath("tmp/matched");
 
 // True if path is a folder; prints an error otherwise.
 static bool directory_exists(const std::filesystem::path& path) {
@@ -80,8 +79,8 @@ int main(int argc, char* argv[]) {
     cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_WARNING);
 
     // Check Arguments
-    if (argc != 3) {
-        std::cerr << "Usage: inframe <album_dir> <reference_dir>" << std::endl;
+    if (argc != 4) {
+        std::cerr << "Usage: inframe <album_dir> <reference_dir> <output_dir>" << std::endl;
         return 2;
     }
 
@@ -101,13 +100,12 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Destination Directory (testing only)
-    std::filesystem::path destination_dir(destinationPath);
-    if (directory_exists(destination_dir)) {
-        std::filesystem::remove_all(destination_dir);
-        std::filesystem::create_directory(destination_dir);
-    } else {
-        std::filesystem::create_directory(destination_dir);
+    // Output: created once here, then matches are copied in.
+    OutputDirectory output_directory(argv[3]);
+    if (!output_directory.create()) {
+        std::cerr << "Failed to create output directory: "
+                  << output_directory.directory_path().string() << std::endl;
+        return 1;
     }
 
     // Model Directory
@@ -181,9 +179,12 @@ int main(int argc, char* argv[]) {
     std::cout << std::endl << "Copying matched images: " << std::endl;
     int copy_count = 0;
     for (const std::filesystem::path& path : matching_paths) {
-        std::filesystem::path new_path = destination_dir / path.filename();
-        std::filesystem::copy_file(path, new_path);
-        copy_count++;
+        if (output_directory.copy(path)) {
+            std::cout << "Copied " << path.string() << std::endl;
+            copy_count++;
+        } else {
+            std::cerr << "Failed to copy " << path.string() << std::endl;
+        }
     }
     std::cout << "Copied " << copy_count << " of " << matching_paths.size() << std::endl;
 
