@@ -12,16 +12,20 @@ find_package(OpenCV CONFIG REQUIRED)
 add_library(
         inframe_core
         STATIC
-        src/core/image_scanner.cpp
-        src/core/image_scanner.h
-        src/core/image_loader.cpp
-        src/core/image_loader.h
         src/core/face_detector.cpp
         src/core/face_detector.h
         src/core/face_recognizer.cpp
         src/core/face_recognizer.h
         src/core/photo_tagger.cpp
         src/core/photo_tagger.h
+        src/core/image_directory.cpp
+        src/core/image_directory.h
+        src/core/album_directory.cpp
+        src/core/album_directory.h
+        src/core/reference_directory.cpp
+        src/core/reference_directory.h
+        src/core/output_directory.cpp
+        src/core/output_directory.h
 )
 target_include_directories(inframe_core PUBLIC src/core)
 target_link_libraries(
