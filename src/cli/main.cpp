@@ -5,14 +5,13 @@
 #include "album_directory.h"
 #include "face_detector.h"
 #include "face_recognizer.h"
+#include "model_paths.h"
 #include "output_directory.h"
 #include "photo_tagger.h"
 #include "reference_directory.h"
 
 // Images are shrunk to this size before detection.
 static constexpr int kMaxDimension = 1280;
-// Model folder, relative to the working directory.
-static std::string kModelPath("models");
 
 // True if path is a folder; prints an error otherwise.
 static bool directory_exists(const std::filesystem::path& path) {
@@ -108,18 +107,18 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Model Directory
-    std::filesystem::path model_path(kModelPath);
+    // Model Directory: next to inframe.exe, so it works from any working directory.
+    std::filesystem::path model_path(model_directory());
     if (!directory_exists(model_path)) return 1;
 
     // Face Detection Model
     std::filesystem::path face_detection_model_path =
-        model_path / "face_detection_yunet_2023mar.onnx";
+        model_path / kDetectorModelFile;
     if (!model_exists(face_detection_model_path)) return 1;
 
     // Face Recognition Model
     std::filesystem::path face_recognition_model_path =
-        model_path / "face_recognition_sface_2021dec.onnx";
+        model_path / kRecognizerModelFile;
     if (!model_exists(face_recognition_model_path)) return 1;
 
     // Loading Models
