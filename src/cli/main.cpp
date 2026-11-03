@@ -4,8 +4,7 @@
 
 #include "face_detector.h"
 #include "face_recognizer.h"
-#include "image_scanner.h"
-#include "image_utils.h"
+#include "image_directory.h"
 #include "photo_tagger.h"
 
 // Images are shrunk to this size before detection.
@@ -34,16 +33,16 @@ static bool model_exists(const std::filesystem::path& model_path) {
 }
 
 // Embeds the face in each reference photo; skips photos without exactly one face.
-static std::vector<cv::Mat> load_reference_embeddings(const std::filesystem::path& reference_dir,
+static std::vector<cv::Mat> load_reference_embeddings(const ImageDirectory& reference_dir,
                                                       FaceDetector& detector,
                                                       FaceRecognizer& recognizer) {
     std::cout << "Loading reference images" << std::endl;
 
     std::vector<cv::Mat> reference_embeddings;
 
-    std::vector<std::filesystem::path> image_paths = find_images(reference_dir);
+    std::vector<std::filesystem::path> image_paths = reference_dir.find_images();
     for (const std::filesystem::path& image_path : image_paths) {
-        cv::Mat image = load_image(image_path, kMaxDimension);
+        cv::Mat image = reference_dir.load_image(image_path);
         std::vector<Face> image_faces = detector.detect(image);
 
         int n_faces = static_cast<int>(image_faces.size());
@@ -85,12 +84,21 @@ int main(int argc, char* argv[]) {
         return 2;
     }
 
-    // Check Argument Directories
-    std::filesystem::path album_dir(argv[1]);
-    if (!directory_exists(album_dir)) return 1;
+    // Album: photos to search.
+    ImageDirectory album_dir(argv[1], kMaxDimension);
+    if (!album_dir.exists()) {
+        std::cerr << "Album directory does not exist: " << album_dir.directory_path().string()
+                  << std::endl;
+        return 1;
+    }
 
-    std::filesystem::path reference_dir(argv[2]);
-    if (!directory_exists(reference_dir)) return 1;
+    // References: photos of the person to find.
+    ImageDirectory reference_dir(argv[2], kMaxDimension);
+    if (!reference_dir.exists()) {
+        std::cerr << "Reference directory does not exist: "
+                  << reference_dir.directory_path().string() << std::endl;
+        return 1;
+    }
 
     // Destination Directory (testing only)
     std::filesystem::path destination_dir(destinationPath);
@@ -123,7 +131,8 @@ int main(int argc, char* argv[]) {
     std::vector<cv::Mat> reference_embeddings =
         load_reference_embeddings(reference_dir, detector, recognizer);
     if (reference_embeddings.empty()) {
-        std::cerr << "No usable reference images in " << reference_dir.string() << std::endl;
+        std::cerr << "No usable reference images in " << reference_dir.directory_path().string()
+                  << std::endl;
         return 1;
     }
     std::cout << "using " << reference_embeddings.size() << " reference images" << std::endl;
@@ -134,10 +143,10 @@ int main(int argc, char* argv[]) {
     int matched = 0;
     int skipped = 0;
     std::vector<std::filesystem::path> matching_paths;
-    std::vector<std::filesystem::path> image_paths = find_images(album_dir);
+    std::vector<std::filesystem::path> image_paths = album_dir.find_images();
 
     for (const std::filesystem::path& image_path : image_paths) {
-        cv::Mat image = load_image(image_path, kMaxDimension);
+        cv::Mat image = album_dir.load_image(image_path);
         if (image.empty()) {
             std::cerr << "SKIPPED: " << image_path.string() << std::endl;
             skipped++;
