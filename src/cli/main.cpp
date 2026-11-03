@@ -4,8 +4,8 @@
 
 #include "face_detector.h"
 #include "face_recognizer.h"
-#include "image_loader.h"
 #include "image_scanner.h"
+#include "image_utils.h"
 #include "photo_tagger.h"
 
 // Images are shrunk to this size before detection.

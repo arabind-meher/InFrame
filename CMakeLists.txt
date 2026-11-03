@@ -14,8 +14,8 @@ add_library(
         STATIC
         src/core/image_scanner.cpp
         src/core/image_scanner.h
-        src/core/image_loader.cpp
-        src/core/image_loader.h
+        src/core/image_utils.cpp
+        src/core/image_utils.h
         src/core/face_detector.cpp
         src/core/face_detector.h
         src/core/face_recognizer.cpp
