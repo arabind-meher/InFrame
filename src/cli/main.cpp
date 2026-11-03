@@ -2,10 +2,11 @@
 #include <iostream>
 #include <opencv2/core/utils/logger.hpp>
 
+#include "album_directory.h"
 #include "face_detector.h"
 #include "face_recognizer.h"
-#include "image_directory.h"
 #include "photo_tagger.h"
+#include "reference_directory.h"
 
 // Images are shrunk to this size before detection.
 static constexpr int kMaxDimension = 1280;
@@ -33,7 +34,7 @@ static bool model_exists(const std::filesystem::path& model_path) {
 }
 
 // Embeds the face in each reference photo; skips photos without exactly one face.
-static std::vector<cv::Mat> load_reference_embeddings(const ImageDirectory& reference_dir,
+static std::vector<cv::Mat> load_reference_embeddings(const ReferenceDirectory& reference_dir,
                                                       FaceDetector& detector,
                                                       FaceRecognizer& recognizer) {
     std::cout << "Loading reference images" << std::endl;
@@ -85,7 +86,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Album: photos to search.
-    ImageDirectory album_dir(argv[1], kMaxDimension);
+    AlbumDirectory album_dir(argv[1], kMaxDimension);
     if (!album_dir.exists()) {
         std::cerr << "Album directory does not exist: " << album_dir.directory_path().string()
                   << std::endl;
@@ -93,7 +94,7 @@ int main(int argc, char* argv[]) {
     }
 
     // References: photos of the person to find.
-    ImageDirectory reference_dir(argv[2], kMaxDimension);
+    ReferenceDirectory reference_dir(argv[2], kMaxDimension);
     if (!reference_dir.exists()) {
         std::cerr << "Reference directory does not exist: "
                   << reference_dir.directory_path().string() << std::endl;

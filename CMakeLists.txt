@@ -20,6 +20,10 @@ add_library(
         src/core/photo_tagger.h
         src/core/image_directory.cpp
         src/core/image_directory.h
+        src/core/album_directory.cpp
+        src/core/album_directory.h
+        src/core/reference_directory.cpp
+        src/core/reference_directory.h
 )
 target_include_directories(inframe_core PUBLIC src/core)
 target_link_libraries(
