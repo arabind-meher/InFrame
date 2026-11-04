@@ -7,6 +7,7 @@
 #include "face_recognizer.h"
 #include "model_paths.h"
 #include "output_directory.h"
+#include "photo_results.h"
 #include "photo_tagger.h"
 #include "reference_directory.h"
 
@@ -112,13 +113,11 @@ int main(int argc, char* argv[]) {
     if (!directory_exists(model_path)) return 1;
 
     // Face Detection Model
-    std::filesystem::path face_detection_model_path =
-        model_path / kDetectorModelFile;
+    std::filesystem::path face_detection_model_path = model_path / kDetectorModelFile;
     if (!model_exists(face_detection_model_path)) return 1;
 
     // Face Recognition Model
-    std::filesystem::path face_recognition_model_path =
-        model_path / kRecognizerModelFile;
+    std::filesystem::path face_recognition_model_path = model_path / kRecognizerModelFile;
     if (!model_exists(face_recognition_model_path)) return 1;
 
     // Loading Models
@@ -143,7 +142,12 @@ int main(int argc, char* argv[]) {
     std::vector<std::filesystem::path> matching_paths;
     std::vector<std::filesystem::path> image_paths = album_dir.find_images();
 
+    // One result per album photo.
+    std::vector<PhotoResult> photo_results;
+
     for (const std::filesystem::path& image_path : image_paths) {
+        // Other fields keep their defaults until filled in.
+        PhotoResult photo_result = {.path = image_path};
         cv::Mat image = album_dir.load_image(image_path);
         if (image.empty()) {
             std::cerr << "SKIPPED: " << image_path.string() << std::endl;
@@ -156,14 +160,28 @@ int main(int argc, char* argv[]) {
             best_score_from_image(image, image_faces, recognizer, reference_embeddings);
 
         PhotoTag image_tag = classify_photo(image_faces);
+        int face_count = static_cast<int>(image_faces.size());
 
         // A photo matches if any face is close enough to any reference.
         if (best_score >= kMatchThreshold) {
             matching_paths.push_back(image_path);
-            std::cout << "MATCHED: (" << image_faces.size() << " faces)[" << best_score << "] ["
+            std::cout << "MATCHED: (" << face_count << " faces)[" << best_score << "] ["
                       << photo_tag_name(image_tag) << "] " << image_path.string() << std::endl;
+
             matched++;
+            photo_result.matched = true;
         }
+
+        // Fill in what was found for this photo.
+        if (photo_result.matched) {
+            photo_result.loaded = true;
+            photo_result.face_count = face_count;
+            photo_result.best_score = best_score;
+            photo_result.tag = image_tag;
+        }
+
+        // Not used yet; PhotoFinder will return these.
+        photo_results.push_back(photo_result);
     }
 
     std::cout << std::endl << "Summary:" << std::endl;

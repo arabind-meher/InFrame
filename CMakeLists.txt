@@ -28,6 +28,7 @@ add_library(
         src/core/output_directory.h
         src/core/model_paths.cpp
         src/core/model_paths.h
+        src/core/photo_results.h
 )
 target_include_directories(inframe_core PUBLIC src/core)
 target_link_libraries(
