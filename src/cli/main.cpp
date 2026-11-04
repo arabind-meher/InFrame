@@ -3,10 +3,9 @@
 #include <opencv2/core/utils/logger.hpp>
 
 #include "album_directory.h"
-#include "face_detector.h"
-#include "face_recognizer.h"
 #include "model_paths.h"
 #include "output_directory.h"
+#include "photo_finder.h"
 #include "photo_results.h"
 #include "photo_tagger.h"
 #include "reference_directory.h"
@@ -30,49 +29,6 @@ static bool model_exists(const std::filesystem::path& model_path) {
         return false;
     }
     return true;
-}
-
-// Embeds the face in each reference photo; skips photos without exactly one face.
-static std::vector<cv::Mat> load_reference_embeddings(const ReferenceDirectory& reference_dir,
-                                                      FaceDetector& detector,
-                                                      FaceRecognizer& recognizer) {
-    std::cout << "Loading reference images" << std::endl;
-
-    std::vector<cv::Mat> reference_embeddings;
-
-    std::vector<std::filesystem::path> image_paths = reference_dir.find_images();
-    for (const std::filesystem::path& image_path : image_paths) {
-        cv::Mat image = reference_dir.load_image(image_path);
-        std::vector<Face> image_faces = detector.detect(image);
-
-        int n_faces = static_cast<int>(image_faces.size());
-        if (n_faces != 1) {
-            std::cerr << "SKIPPING IMAGE: (" << n_faces << " faces) - " << image_path.string()
-                      << std::endl;
-            continue;
-        }
-
-        std::cout << "LOADING IMAGE: (" << n_faces << " faces) - " << image_path.string()
-                  << std::endl;
-        reference_embeddings.push_back(recognizer.embed(image, image_faces.at(0)));
-    }
-
-    return reference_embeddings;
-}
-
-// Highest similarity of any face in the image to any reference (-1.0 if no faces).
-static double best_score_from_image(const cv::Mat& image, const std::vector<Face>& faces,
-                                    FaceRecognizer& recognizer,
-                                    const std::vector<cv::Mat>& reference_embeddings) {
-    double best_score = -1.0;
-
-    for (const Face& face : faces) {
-        cv::Mat face_embedding = recognizer.embed(image, face);
-        double score = recognizer.best_similarity(face_embedding, reference_embeddings);
-        best_score = std::max(best_score, score);
-    }
-
-    return best_score;
 }
 
 int main(int argc, char* argv[]) {
@@ -120,90 +76,49 @@ int main(int argc, char* argv[]) {
     std::filesystem::path face_recognition_model_path = model_path / kRecognizerModelFile;
     if (!model_exists(face_recognition_model_path)) return 1;
 
-    // Loading Models
-    FaceDetector detector(face_detection_model_path);
-    FaceRecognizer recognizer(face_recognition_model_path);
+    PhotoFinder photo_finder;
 
     // Loading Reference Images
-    std::vector<cv::Mat> reference_embeddings =
-        load_reference_embeddings(reference_dir, detector, recognizer);
-    if (reference_embeddings.empty()) {
+    std::cout << "Loading reference images" << std::endl;
+    std::vector<std::filesystem::path> skipped_paths = photo_finder.load_references(reference_dir);
+    for (const std::filesystem::path& image_path : skipped_paths) {
+        std::cerr << "SKIPPED reference (needs exactly one face): " << image_path.string()
+                  << std::endl;
+    }
+
+    int reference_size = photo_finder.reference_count();
+    if (reference_size == 0) {
         std::cerr << "No usable reference images in " << reference_dir.directory_path().string()
                   << std::endl;
         return 1;
     }
-    std::cout << "using " << reference_embeddings.size() << " reference images" << std::endl;
+    std::cout << "Using " << reference_size << " reference images" << std::endl;
 
     // Loading Album Directory
-    std::cout << "Loading Album Images" << std::endl;
+    std::cout << std::endl << "Searching album" << std::endl;
 
-    int matched = 0;
-    int skipped = 0;
-    std::vector<std::filesystem::path> matching_paths;
-    std::vector<std::filesystem::path> image_paths = album_dir.find_images();
-
-    // One result per album photo.
-    std::vector<PhotoResult> photo_results;
-
-    for (const std::filesystem::path& image_path : image_paths) {
-        // Other fields keep their defaults until filled in.
-        PhotoResult photo_result = {.path = image_path};
-        cv::Mat image = album_dir.load_image(image_path);
-        if (image.empty()) {
-            std::cerr << "SKIPPED: " << image_path.string() << std::endl;
-            skipped++;
-            continue;
-        }
-
-        std::vector<Face> image_faces = detector.detect(image);
-        double best_score =
-            best_score_from_image(image, image_faces, recognizer, reference_embeddings);
-
-        PhotoTag image_tag = classify_photo(image_faces);
-        int face_count = static_cast<int>(image_faces.size());
-
-        // A photo matches if any face is close enough to any reference.
-        if (best_score >= kMatchThreshold) {
-            matching_paths.push_back(image_path);
-            std::cout << "MATCHED: (" << face_count << " faces)[" << best_score << "] ["
-                      << photo_tag_name(image_tag) << "] " << image_path.string() << std::endl;
-
-            matched++;
-            photo_result.matched = true;
-        }
-
-        // Fill in what was found for this photo.
-        if (photo_result.matched) {
-            photo_result.loaded = true;
-            photo_result.face_count = face_count;
-            photo_result.best_score = best_score;
-            photo_result.tag = image_tag;
-        }
-
-        // Not used yet; PhotoFinder will return these.
-        photo_results.push_back(photo_result);
-    }
-
-    std::cout << std::endl << "Summary:" << std::endl;
-    std::cout << "Photos you are in: " << std::endl;
-    for (const std::filesystem::path& path : matching_paths) {
-        std::cout << path.string() << std::endl;
-    }
-    std::cout << "Found you in " << matched << " of " << image_paths.size()
-              << " photos and Skipped " << skipped << std::endl;
-
-    // Testing only: copy matches so they can be checked by eye.
-    std::cout << std::endl << "Copying matched images: " << std::endl;
-    int copy_count = 0;
-    for (const std::filesystem::path& path : matching_paths) {
-        if (output_directory.copy(path)) {
-            std::cout << "Copied " << path.string() << std::endl;
-            copy_count++;
-        } else {
-            std::cerr << "Failed to copy " << path.string() << std::endl;
+    int matched_count = 0;
+    int skipped_count = 0;
+    std::vector<PhotoResult> photo_results = photo_finder.process_album(album_dir);
+    for (const PhotoResult& photo_result : photo_results) {
+        if (!photo_result.loaded) {
+            std::cerr << "SKIPPED (unreadable): " << photo_result.path.string() << std::endl;
+            skipped_count++;
+        } else if (photo_result.matched) {
+            std::cout << "MATCHED: " << photo_result.path.string() << " ("
+                      << photo_result.face_count << " faces, score " << photo_result.best_score
+                      << ", " << photo_tag_name(photo_result.tag) << ")" << std::endl;
+            matched_count++;
         }
     }
-    std::cout << "Copied " << copy_count << " of " << matching_paths.size() << std::endl;
+
+    // Summary
+    int copy_count = PhotoFinder::copy_matches(photo_results, output_directory);
+    std::cout << std::endl << "Summary" << std::endl;
+    std::cout << "Matched " << matched_count << " of " << photo_results.size() << " photos ("
+              << skipped_count << " unreadable)" << std::endl;
+    std::cout << "Copied " << copy_count << " of " << matched_count << " to "
+              << output_directory.directory_path().string() << std::endl;
 
     return 0;
 }
