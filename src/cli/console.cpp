@@ -66,3 +66,7 @@ void print_summary(const std::vector<PhotoResult>& photo_results, int copy_count
     std::cout << "Copied " << copy_count << " of " << matched_count << " to "
               << output_dir.directory_path().string() << std::endl;
 }
+
+void print_error(const std::string& message) {
+    std::cerr << message << std::endl;
+}

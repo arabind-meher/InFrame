@@ -1,74 +1,53 @@
-#include <filesystem>
-#include <iostream>
+#include <CLI/CLI.hpp>
+#include <exception>
+#include <opencv2/core.hpp>
 #include <opencv2/core/utils/logger.hpp>
-#include <vector>
+#include <string>
 
-#include "album_directory.h"
+#include "commands.h"
 #include "console.h"
-#include "output_directory.h"
-#include "photo_finder.h"
-#include "photo_results.h"
-#include "reference_directory.h"
-
-// Images are shrunk to this size before detection.
-static constexpr int kMaxDimension = 1280;
 
 int main(int argc, char* argv[]) {
     cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_WARNING);
 
-    // Check Arguments
-    if (argc != 4) {
-        std::cerr << "Usage: inframe <album_dir> <reference_dir> <output_dir>" << std::endl;
-        return 2;
-    }
+    // App: exactly one subcommand must be given.
+    CLI::App cli("Find a person in your photo album.");
+    cli.name("inframe");
+    cli.require_subcommand(1);
 
-    // Album: photos to search. References: photos of the person to find.
-    AlbumDirectory album_dir(argv[1], kMaxDimension);
-    ReferenceDirectory reference_dir(argv[2], kMaxDimension);
-    OutputDirectory output_directory(argv[3]);
+    // find: CLI11 writes the flag values straight into find_options.
+    FindOptions find_options;
 
-    // Check everything first and report all problems at once.
-    std::vector<SetupProblem> problems =
-        PhotoFinder::validate(album_dir, reference_dir, output_directory);
-    print_problem(problems);
-    if (!problems.empty()) return 1;
+    CLI::App* find_command = cli.add_subcommand("find", "Find photos of a person in an album");
+    find_command->add_option("--album", find_options.album, "Folder of photos to search")
+        ->required();
+    find_command->add_option("--refs", find_options.reference, "Folder of photos of the person")
+        ->required();
+    // Optional: keeps "InFrame Output" when missing.
+    find_command->add_option("--out", find_options.output, "Folder to copy matches into")
+        ->capture_default_str();
 
-    // Output: created once here (only after validation), then matches are copied in.
-    if (!output_directory.create()) {
-        std::cerr << "Failed to create output folder: "
-                  << output_directory.directory_path().string() << std::endl;
-        return 1;
-    }
-
+    // Parse: help exits 0, any usage mistake exits 2.
     try {
-        PhotoFinder photo_finder;
+        cli.parse(argc, argv);
+    } catch (const CLI::ParseError& e) {
+        int code = cli.exit(e);
 
-        // References
-        std::cout << "Loading reference images" << std::endl;
-        std::vector<std::filesystem::path> skipped_paths =
-            photo_finder.load_references(reference_dir);
-        print_skipped_reference(skipped_paths);
+        if (code == 0)
+            return 0;
+        else
+            return 2;
+    }
 
-        int reference_size = photo_finder.reference_count();
-        if (reference_size == 0) {
-            std::cerr << "No usable reference images in " << reference_dir.directory_path().string()
-                      << std::endl;
-            return 1;
-        }
-        std::cout << "Using " << reference_size << " reference images" << std::endl;
-
-        // Album
-        std::cout << std::endl << "Searching album" << std::endl;
-        std::vector<PhotoResult> photo_results = photo_finder.process_album(album_dir);
-        print_results(photo_results);
-
-        // Copy and summary
-        int copy_count = PhotoFinder::copy_matches(photo_results, output_directory);
-        print_summary(photo_results, copy_count, output_directory);
+    // Run: the one place runtime errors are caught.
+    try {
+        if (find_command->parsed()) return run_find(find_options);
     } catch (const cv::Exception& e) {
         // Most likely a corrupt model file, but any OpenCV failure ends up here.
-        std::cerr << "OpenCV error (a model file may be corrupt):" << std::endl
-                  << e.what() << std::endl;
+        print_error(std::string("OpenCV error (a model file may be corrupt):\n") + e.what());
+        return 1;
+    } catch (const std::exception& e) {
+        print_error(std::string("Error: ") + e.what());
         return 1;
     }
 

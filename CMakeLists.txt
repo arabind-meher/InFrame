@@ -51,6 +51,8 @@ add_executable(
         inframe src/cli/main.cpp
         src/cli/console.cpp
         src/cli/console.h
+        src/cli/commands.cpp
+        src/cli/commands.h
 )
 
 target_link_libraries(

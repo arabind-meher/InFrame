@@ -3,6 +3,7 @@
 // All CLI printing lives here; the core never prints.
 
 #include <filesystem>
+#include <string>
 #include <vector>
 
 #include "photo_finder.h"
@@ -20,3 +21,6 @@ void print_results(const std::vector<PhotoResult>& photo_results);
 // Prints match and copy counts at the end of a run.
 void print_summary(const std::vector<PhotoResult>& photo_results, int copy_count,
                    const OutputDirectory& output_dir);
+
+// Prints an error message (to stderr).
+void print_error(const std::string& message);
