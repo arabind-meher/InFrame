@@ -22,10 +22,14 @@ add_library(
         src/core/image_directory.h
         src/core/album_directory.cpp
         src/core/album_directory.h
-        src/core/reference_directory.cpp
         src/core/reference_directory.h
         src/core/output_directory.cpp
         src/core/output_directory.h
+        src/core/model_paths.cpp
+        src/core/model_paths.h
+        src/core/photo_results.h
+        src/core/photo_finder.cpp
+        src/core/photo_finder.h
 )
 target_include_directories(inframe_core PUBLIC src/core)
 target_link_libraries(
@@ -39,11 +43,21 @@ target_link_libraries(
 )
 
 # Command-line program.
-add_executable(inframe src/cli/main.cpp)
+add_executable(inframe src/cli/main.cpp
+        src/cli/console.cpp
+        src/cli/console.h)
 target_link_libraries(inframe PRIVATE inframe_core)
 
+add_custom_command(
+        TARGET inframe POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:inframe>/models
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/models/face_detection_yunet_2023mar.onnx $<TARGET_FILE_DIR:inframe>/models
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/models/face_recognition_sface_2021dec.onnx $<TARGET_FILE_DIR:inframe>/models
+        COMMENT "Copying Models"
+)
+
 # /W4 on project targets only (not as errors).
-if(MSVC)
+if (MSVC)
     target_compile_options(inframe_core PRIVATE /W4)
     target_compile_options(inframe PRIVATE /W4)
-endif()
+endif ()
