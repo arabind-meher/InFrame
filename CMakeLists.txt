@@ -43,7 +43,9 @@ target_link_libraries(
 )
 
 # Command-line program.
-add_executable(inframe src/cli/main.cpp)
+add_executable(inframe src/cli/main.cpp
+        src/cli/console.cpp
+        src/cli/console.h)
 target_link_libraries(inframe PRIVATE inframe_core)
 
 add_custom_command(
