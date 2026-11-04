@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(OpenCV CONFIG REQUIRED)
+find_package(CLI11 CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 # Core logic, kept separate from the CLI so a future GUI can reuse it.
 add_library(
@@ -31,7 +33,9 @@ add_library(
         src/core/photo_finder.cpp
         src/core/photo_finder.h
 )
+
 target_include_directories(inframe_core PUBLIC src/core)
+
 target_link_libraries(
         inframe_core
         PUBLIC
@@ -43,10 +47,19 @@ target_link_libraries(
 )
 
 # Command-line program.
-add_executable(inframe src/cli/main.cpp
+add_executable(
+        inframe src/cli/main.cpp
         src/cli/console.cpp
-        src/cli/console.h)
-target_link_libraries(inframe PRIVATE inframe_core)
+        src/cli/console.h
+)
+
+target_link_libraries(
+        inframe
+        PRIVATE
+        inframe_core
+        CLI11::CLI11
+        nlohmann_json::nlohmann_json
+)
 
 add_custom_command(
         TARGET inframe POST_BUILD

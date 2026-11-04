@@ -51,8 +51,8 @@ int main(int argc, char* argv[]) {
 
         int reference_size = photo_finder.reference_count();
         if (reference_size == 0) {
-            std::cerr << "No usable reference images in "
-                      << reference_dir.directory_path().string() << std::endl;
+            std::cerr << "No usable reference images in " << reference_dir.directory_path().string()
+                      << std::endl;
             return 1;
         }
         std::cout << "Using " << reference_size << " reference images" << std::endl;
