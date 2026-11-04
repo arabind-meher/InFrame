@@ -107,3 +107,21 @@ int PhotoFinder::copy_matches(const std::vector<PhotoResult>& photo_results,
 
     return count;
 }
+std::vector<SetupProblem> PhotoFinder::validate(const AlbumDirectory& album_dir,
+                                                const ReferenceDirectory& reference_dir,
+                                                const OutputDirectory& output_dir) {
+    std::vector<SetupProblem> setup_problems;
+
+    if (!album_dir.exists()) setup_problems.push_back(SetupProblem::AlbumMissing);
+    if (!reference_dir.exists()) setup_problems.push_back(SetupProblem::ReferenceMissing);
+
+    if (album_dir.contains(output_dir.directory_path()))
+        setup_problems.push_back(SetupProblem::OutputInsideAlbum);
+
+    if (!std::filesystem::exists(model_directory() / kDetectorModelFile))
+        setup_problems.push_back(SetupProblem::DetectorModelMissing);
+    if (!std::filesystem::exists(model_directory() / kRecognizerModelFile))
+        setup_problems.push_back(SetupProblem::RecognizerModelMissing);
+
+    return setup_problems;
+}

@@ -20,6 +20,7 @@ add_library(
         src/core/photo_tagger.h
         src/core/image_directory.cpp
         src/core/image_directory.h
+        src/core/album_directory.cpp
         src/core/album_directory.h
         src/core/reference_directory.h
         src/core/output_directory.cpp

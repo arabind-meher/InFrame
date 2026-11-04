@@ -10,6 +10,15 @@
 #include "photo_results.h"
 #include "reference_directory.h"
 
+// Something wrong with the setup, found before any work starts.
+enum class SetupProblem {
+    AlbumMissing,
+    ReferenceMissing,
+    OutputInsideAlbum,
+    DetectorModelMissing,
+    RecognizerModelMissing
+};
+
 // Finds a person in an album: the one class the CLI and GUI call.
 class PhotoFinder {
 public:
@@ -31,6 +40,11 @@ public:
     // Copies matched photos; returns how many were copied. Call output_dir.create() first.
     static int copy_matches(const std::vector<PhotoResult>& photo_results,
                             const OutputDirectory& output_dir);
+
+    // Checks directories and models before constructing. Empty means OK.
+    static std::vector<SetupProblem> validate(const AlbumDirectory& album_dir,
+                                              const ReferenceDirectory& reference_dir,
+                                              const OutputDirectory& output_dir);
 
 private:
     FaceDetector detector_;
