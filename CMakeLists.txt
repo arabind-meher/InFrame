@@ -49,6 +49,8 @@ target_link_libraries(
 # Command-line program.
 add_executable(
         inframe src/cli/main.cpp
+        src/cli/console.cpp
+        src/cli/console.h
 )
 
 target_link_libraries(
