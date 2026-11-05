@@ -3,7 +3,6 @@
 #include <iostream>
 #include <string>
 
-#include "model_paths.h"
 #include "photo_tagger.h"
 
 // Text for one setup problem.
@@ -16,9 +15,11 @@ static std::string problem_message(SetupProblem problem) {
         case SetupProblem::OutputInsideAlbum:
             return "Output folder should not be inside the album folder.";
         case SetupProblem::DetectorModelMissing:
-            return std::string("Model not found: ") + kDetectorModelFile;
+            return "Detector model not found (check model_directory and detector_model in "
+                   "config.json).";
         case SetupProblem::RecognizerModelMissing:
-            return std::string("Model not found: ") + kRecognizerModelFile;
+            return "Recognizer model not found (check model_directory and recognizer_model in "
+                   "config.json).";
     }
     return "Unknown setup problem.";
 }

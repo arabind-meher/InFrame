@@ -13,6 +13,6 @@ struct PhotoResult {
     // Highest similarity to any reference; -1.0 if no faces.
     double best_score = -1.0;
     PhotoTag tag = PhotoTag::Scenery;
-    // True if best_score reaches kMatchThreshold.
+    // True if best_score reaches the match threshold.
     bool matched = false;
 };

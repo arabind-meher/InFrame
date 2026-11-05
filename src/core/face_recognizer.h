@@ -6,9 +6,6 @@
 
 #include "face_detector.h"
 
-// OpenCV's recommended SFace cosine threshold.
-inline constexpr double kMatchThreshold = 0.363;
-
 // Turns faces into embeddings with the SFace model and compares them.
 class FaceRecognizer {
 public:

@@ -46,6 +46,10 @@ int main(int argc, char* argv[]) {
         // Settings from the config.
         find_options.output = config.output_directory;
         find_options.max_dimension = config.max_dimension;
+        // model_directory is already absolute, so the joined paths are too.
+        find_options.models.detector_path = config.model_directory / config.detector_model;
+        find_options.models.recognizer_path = config.model_directory / config.recognizer_model;
+        find_options.models.match_threshold = config.match_threshold;
 
         if (find_command->parsed()) return run_find(find_options);
     } catch (const cv::Exception& e) {

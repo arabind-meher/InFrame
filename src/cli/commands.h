@@ -2,6 +2,8 @@
 
 #include <filesystem>
 
+#include "photo_finder.h"
+
 // Settings for the find command, filled in by the CLI.
 struct FindOptions {
     std::filesystem::path album;
@@ -10,6 +12,8 @@ struct FindOptions {
     std::filesystem::path output;
     // Photos are shrunk to this size (0 = full size).
     int max_dimension;
+    // Model files and match threshold.
+    ModelSettings models;
 };
 
 // Finds the person in the album and copies matches; returns the exit code.

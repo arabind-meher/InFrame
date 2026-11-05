@@ -33,7 +33,7 @@ int run_find(const FindOptions& options) {
 
     // Check everything first and report all problems at once.
     std::vector<SetupProblem> setup_problems =
-        PhotoFinder::validate(album_dir, reference_dir, output_dir);
+        PhotoFinder::validate(album_dir, reference_dir, output_dir, options.models);
     print_problems(setup_problems);
     if (!setup_problems.empty()) return 1;
 
@@ -44,7 +44,7 @@ int run_find(const FindOptions& options) {
     }
 
     // Exceptions (e.g. a corrupt model) are caught in main.
-    PhotoFinder photo_finder;
+    PhotoFinder photo_finder(options.models);
 
     // References
     print_info("Loading reference images");

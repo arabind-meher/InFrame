@@ -27,8 +27,6 @@ add_library(
         src/core/reference_directory.h
         src/core/output_directory.cpp
         src/core/output_directory.h
-        src/core/model_paths.cpp
-        src/core/model_paths.h
         src/core/photo_results.h
         src/core/photo_finder.cpp
         src/core/photo_finder.h
@@ -64,14 +62,6 @@ target_link_libraries(
         inframe_core
         CLI11::CLI11
         nlohmann_json::nlohmann_json
-)
-
-add_custom_command(
-        TARGET inframe POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:inframe>/models
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/models/face_detection_yunet_2023mar.onnx $<TARGET_FILE_DIR:inframe>/models
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/models/face_recognition_sface_2021dec.onnx $<TARGET_FILE_DIR:inframe>/models
-        COMMENT "Copying Models"
 )
 
 target_compile_definitions(
