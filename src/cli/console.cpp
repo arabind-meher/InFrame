@@ -23,18 +23,12 @@ static std::string problem_message(SetupProblem problem) {
     return "Unknown setup problem.";
 }
 
-void print_info(const std::string& message) {
-    std::cout << message << std::endl;
-}
+void print_info(const std::string& message) { std::cout << message << std::endl; }
 
 // Warnings and errors go to stderr, so they still show when output is redirected.
-void print_warning(const std::string& message) {
-    std::cerr << "Warning: " << message << std::endl;
-}
+void print_warning(const std::string& message) { std::cerr << "Warning: " << message << std::endl; }
 
-void print_error(const std::string& message) {
-    std::cerr << "Error: " << message << std::endl;
-}
+void print_error(const std::string& message) { std::cerr << "Error: " << message << std::endl; }
 
 void print_problems(const std::vector<SetupProblem>& setup_problems) {
     for (SetupProblem problem : setup_problems) {
