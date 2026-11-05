@@ -37,6 +37,13 @@ int main(int argc, char* argv[]) {
     find_command->add_flag("--copy", find_options.copy,
                            "Copy matched photos into a new output folder");
 
+    // scan: album only; lists faces and tags, writes nothing.
+    ScanOptions scan_options;
+
+    CLI::App* scan_command = cli.add_subcommand("scan", "List face counts and tags for an album");
+    scan_command->add_option("--album", scan_options.album, "Folder of photos to scan")
+        ->required();
+
     // Parse: help exits 0, any usage mistake exits 2.
     try {
         cli.parse(argc, argv);
@@ -63,21 +70,28 @@ int main(int argc, char* argv[]) {
             print_warning("Unknown config key \"" + key + "\" (ignored)");
         }
 
-        // Settings from the config.
+        // Models: built once, shared by every subcommand.
+        // model_directory is already absolute, so the joined paths are too.
+        ModelSettings models;
+        models.detector_path = config.model_directory / config.detector_model;
+        models.recognizer_path = config.model_directory / config.recognizer_model;
+        models.match_threshold = config.match_threshold;
+
+        // Settings from the config; filled for both, only one subcommand runs.
         find_options.output = config.output_directory;
         find_options.max_dimension = config.max_dimension;
-        // model_directory is already absolute, so the joined paths are too.
-        find_options.models.detector_path = config.model_directory / config.detector_model;
-        find_options.models.recognizer_path = config.model_directory / config.recognizer_model;
-        find_options.models.match_threshold = config.match_threshold;
+        find_options.models = models;
+        scan_options.max_dimension = config.max_dimension;
+        scan_options.models = models;
 
         // Verbose only: where the settings came from.
         print_detail("Config: " + config_path().string());
-        print_detail("Detector: " + find_options.models.detector_path.string());
-        print_detail("Recognizer: " + find_options.models.recognizer_path.string());
-        print_detail("Match threshold: " + std::to_string(config.match_threshold));
+        print_detail("Detector: " + models.detector_path.string());
+        print_detail("Recognizer: " + models.recognizer_path.string());
+        print_detail("Match threshold: " + std::to_string(models.match_threshold));
 
         if (find_command->parsed()) return run_find(find_options);
+        if (scan_command->parsed()) return run_scan(scan_options);
     } catch (const cv::Exception& e) {
         // Most likely a corrupt model file, but any OpenCV failure ends up here.
         print_error(std::string("OpenCV failed (a model file may be corrupt):\n") + e.what());

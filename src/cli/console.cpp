@@ -125,3 +125,46 @@ void print_copy_hint(const std::vector<PhotoResult>& photo_results) {
 
     print_info("Add --copy to copy them into a new output folder.");
 }
+
+void print_scan_results(const std::vector<PhotoResult>& photo_results) {
+    for (const PhotoResult& photo_result : photo_results) {
+        if (!photo_result.loaded) {
+            print_warning("Skipped (unreadable): " + photo_result.path.string());
+        } else if (current_verbosity != Verbosity::Quiet) {
+            // No score: scan has no references, so it is always -1.
+            std::cout << photo_result.path.string() << " (" << photo_result.face_count
+                      << " faces, " << photo_tag_name(photo_result.tag) << ")" << std::endl;
+        }
+    }
+}
+
+void print_scan_summary(const std::vector<PhotoResult>& photo_results) {
+    int scenery_count = 0;
+    int solo_count = 0;
+    int group_count = 0;
+    int unreadable_count = 0;
+
+    // Unreadable photos have no real tag, so they are counted apart.
+    for (const PhotoResult& photo_result : photo_results) {
+        if (!photo_result.loaded) {
+            unreadable_count++;
+            continue;
+        }
+        switch (photo_result.tag) {
+            case PhotoTag::Scenery:
+                scenery_count++;
+                break;
+            case PhotoTag::Solo:
+                solo_count++;
+                break;
+            case PhotoTag::Group:
+                group_count++;
+                break;
+        }
+    }
+
+    std::cout << std::endl << "Summary" << std::endl;
+    std::cout << "Scanned " << photo_results.size() << " photos: " << scenery_count << " scenery, "
+              << solo_count << " solo, " << group_count << " group (" << unreadable_count
+              << " unreadable)" << std::endl;
+}

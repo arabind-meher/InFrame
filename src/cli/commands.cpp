@@ -75,3 +75,22 @@ int run_find(const FindOptions& options) {
 
     return 0;
 }
+
+int run_scan(const ScanOptions& options) {
+    AlbumDirectory album_dir(options.album, options.max_dimension);
+
+    // Only the album and models matter here.
+    std::vector<SetupProblem> setup_problems = PhotoFinder::validate(album_dir, options.models);
+    print_problems(setup_problems);
+    if (!setup_problems.empty()) return 1;
+
+    // No references loaded, so every photo gets faces and a tag but never matches.
+    PhotoFinder photo_finder(options.models);
+
+    print_info("Scanning album");
+    std::vector<PhotoResult> photo_results = photo_finder.process_album(album_dir);
+    print_scan_results(photo_results);
+    print_scan_summary(photo_results);
+
+    return 0;
+}

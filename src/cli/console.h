@@ -52,3 +52,9 @@ void print_copy_result(const std::vector<PhotoResult>& photo_results, int copy_c
 
 // Tells the user how to copy the matches (only if there are any).
 void print_copy_hint(const std::vector<PhotoResult>& photo_results);
+
+// scan: warns per unreadable photo; a line per photo with faces and tag (not quiet).
+void print_scan_results(const std::vector<PhotoResult>& photo_results);
+
+// scan: photo count per tag at the end of a run.
+void print_scan_summary(const std::vector<PhotoResult>& photo_results);

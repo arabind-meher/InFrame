@@ -18,5 +18,17 @@ struct FindOptions {
     bool copy = false;
 };
 
+// Settings for the scan command: no references, nothing is written.
+struct ScanOptions {
+    std::filesystem::path album;
+    // Photos are shrunk to this size (0 = full size).
+    int max_dimension;
+    // Only the detector is really needed; the threshold is unused.
+    ModelSettings models;
+};
+
 // Finds the person in the album and copies matches; returns the exit code.
 int run_find(const FindOptions& options);
+
+// Lists face counts and tags for every album photo; returns the exit code.
+int run_scan(const ScanOptions& options);

@@ -49,6 +49,10 @@ public:
     static int copy_matches(const std::vector<PhotoResult>& photo_results,
                             const OutputDirectory& output_dir);
 
+    // Checks the album and models only (for runs without references). Empty means OK.
+    static std::vector<SetupProblem> validate(const AlbumDirectory& album_dir,
+                                              const ModelSettings& model_settings);
+
     // Checks directories and models before constructing. Empty means OK.
     static std::vector<SetupProblem> validate(const AlbumDirectory& album_dir,
                                               const ReferenceDirectory& reference_dir,
