@@ -10,17 +10,26 @@ seconds. It runs entirely on your machine, so no photos or face data are ever up
 
 ## Status
 
-🚧 In development.
+The command-line tool works: `find` picks out your photos and `scan` tags a whole album.
+🚧 More sorting options and a desktop app are still in development.
 
-## Features (planned)
+## Features
 
-- Find every photo you appear in, using a few reference photos of yourself or by
-  picking your face from the people InFrame detects
-- Tag photos by person, scenery/places, and group vs solo shots; a photo can carry
-  several tags
+Works now:
+
+- Find every photo you appear in, using a few reference photos of yourself
+- Tag photos as scenery (no faces), solo (one face) or group (two or more faces)
 - Point it at any folder of photos, including subfolders from different phones
-- Command-line interface first, with a desktop app to follow
-- Runs on Windows
+  (`.jpg`, `.jpeg`, `.png`, `.bmp`)
+- Copy your matches into a new folder; the original album is never changed
+- Runs on Windows, fully offline
+
+Planned:
+
+- Pick your face from the people InFrame detects, without reference photos
+- Tag photos by person
+- Sort copies into subfolders by tag
+- A desktop app on top of the same core
 
 ## Building
 
@@ -32,14 +41,84 @@ Prerequisites (Windows):
 - [vcpkg](https://github.com/microsoft/vcpkg) cloned and bootstrapped, with the
   `VCPKG_ROOT` environment variable pointing to it
 
-Dependencies (OpenCV) are installed automatically by vcpkg on first configure.
-Build with the debug preset from a "x64 Native Tools Command Prompt for VS" (or let CLion
-load the preset):
+Dependencies (OpenCV, CLI11, nlohmann-json) are installed automatically by vcpkg on first
+configure. Build with the debug preset from a "x64 Native Tools Command Prompt for VS" (or
+let CLion load the preset):
 
 ```
 cmake --preset debug
 cmake --build cmake-build-debug
 ```
+
+## Setup
+
+1. Download the two model files into the `models/` folder:
+   - `face_detection_yunet_2023mar.onnx` from
+     [OpenCV Zoo: YuNet](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet)
+   - `face_recognition_sface_2021dec.onnx` from
+     [OpenCV Zoo: SFace](https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface)
+2. Copy `config.example.json` to `config.json` in the project root. The defaults work as
+   they are; see [Configuration](#configuration) to change them.
+
+## Usage
+
+Find your photos (lists the matches, copies nothing):
+
+```
+inframe find --album "D:\Photos\Goa Trip" --refs "D:\Photos\Me"
+```
+
+Find and copy them into a new output folder:
+
+```
+inframe find --album "D:\Photos\Goa Trip" --refs "D:\Photos\Me" --copy
+```
+
+List face counts and tags for every photo in an album:
+
+```
+inframe scan --album "D:\Photos\Goa Trip"
+```
+
+| Flag | Command | Meaning |
+|------|---------|---------|
+| `--album <dir>` | `find`, `scan` | Folder of photos to search (required) |
+| `--refs <dir>` | `find` | Folder of photos of the person to find, one face each (required) |
+| `--copy` | `find` | Copy the matches into a new output folder |
+| `-q`, `--quiet` | all | Only print the summary |
+| `-v`, `--verbose` | all | Also print non-matches and the settings in use |
+| `--help` | all | Show help |
+| `--version` | all | Show the version |
+
+- Each `--copy` run creates a new folder named after its start time, e.g.
+  `output/20261105_140732`, so earlier results are never overwritten.
+- Exit codes: `0` success, `1` error (missing folder, bad config, unreadable model),
+  `2` wrong usage.
+
+## Configuration
+
+Everything except the album and reference folders comes from `config.json` in the project
+root. All keys are required; a missing or invalid value stops the run with an error that
+names it.
+
+| Key | Example | Meaning |
+|-----|---------|---------|
+| `output` | `"output"` | Base folder for copies; each run adds a date-time subfolder |
+| `max_dimension` | `1280` | Photos are shrunk to this size before detection (`0` = full size, otherwise 320-4096) |
+| `model_directory` | `"models"` | Folder holding the model files |
+| `detector_model` | `"face_detection_yunet_2023mar.onnx"` | Face detection model file |
+| `recognizer_model` | `"face_recognition_sface_2021dec.onnx"` | Face recognition model file |
+| `match_threshold` | `0.363` | Lowest similarity score that counts as a match (0-1) |
+
+Relative paths are relative to the project root, so the tool works from any folder.
+
+## How it works
+
+1. YuNet finds the faces in each photo.
+2. SFace turns each face into an embedding, a list of numbers describing it.
+3. A photo matches when any of its faces is similar enough to any reference face (cosine
+   similarity at or above `match_threshold`).
+4. The tag comes from the number of faces: none is scenery, one is solo, more is group.
 
 ## Privacy
 
@@ -48,6 +127,8 @@ cmake --build cmake-build-debug
 - This repository never contains personal photos. Tests and examples use licensed
   stock or synthetic images.
 - Model files are downloaded during setup rather than stored in the repository.
+- `config.json` and the `output/` folder are git-ignored, so your paths and copied photos
+  stay out of the repository.
 
 ## License
 
