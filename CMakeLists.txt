@@ -64,10 +64,12 @@ target_link_libraries(
         nlohmann_json::nlohmann_json
 )
 
+# Project root (finds config.json) and version (for --version), passed to the CLI code.
 target_compile_definitions(
         inframe
         PRIVATE
         INFRAME_ROOT="${CMAKE_SOURCE_DIR}"
+        INFRAME_VERSION="${PROJECT_VERSION}"
 )
 
 # /W4 on project targets only (not as errors).

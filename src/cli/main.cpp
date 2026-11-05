@@ -15,6 +15,10 @@ int main(int argc, char* argv[]) {
     CLI::App cli("Find a person in your photo album.");
     cli.name("inframe");
     cli.require_subcommand(1);
+
+    // --version prints and exits 0, like --help; the number comes from CMake's project VERSION.
+    cli.set_version_flag("--version", "inframe " + std::string(INFRAME_VERSION));
+
     // Lets app flags like --quiet come after the subcommand too.
     cli.fallthrough();
 
@@ -41,8 +45,7 @@ int main(int argc, char* argv[]) {
     ScanOptions scan_options;
 
     CLI::App* scan_command = cli.add_subcommand("scan", "List face counts and tags for an album");
-    scan_command->add_option("--album", scan_options.album, "Folder of photos to scan")
-        ->required();
+    scan_command->add_option("--album", scan_options.album, "Folder of photos to scan")->required();
 
     // Parse: help exits 0, any usage mistake exits 2.
     try {
