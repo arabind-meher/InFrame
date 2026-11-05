@@ -1,0 +1,8 @@
+{
+    "output": "output",
+    "max_dimension": 1280,
+    "model_directory": "models",
+    "detector_model": "face_detection_yunet_2023mar.onnx",
+    "recognizer_model": "face_recognition_sface_2021dec.onnx",
+    "match_threshold": 0.363
+}

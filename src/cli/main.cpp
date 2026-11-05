@@ -5,6 +5,7 @@
 #include <string>
 
 #include "commands.h"
+#include "config.h"
 #include "console.h"
 
 int main(int argc, char* argv[]) {
@@ -23,13 +24,6 @@ int main(int argc, char* argv[]) {
         ->required();
     find_command->add_option("--refs", find_options.reference, "Folder of photos of the person")
         ->required();
-    // Optional: the defaults in FindOptions stay when missing.
-    find_command->add_option("--out", find_options.output, "Folder to copy matches into")
-        ->capture_default_str();
-    find_command
-        ->add_option("--max-dimension", find_options.max_dimension,
-                     "Shrink photos to this size (0 = full size)")
-        ->capture_default_str();
 
     // Parse: help exits 0, any usage mistake exits 2.
     try {
@@ -41,12 +35,25 @@ int main(int argc, char* argv[]) {
 
     // Run: the one place runtime errors are caught.
     try {
+        // Config: everything except album and refs comes from config.json.
+        Config config = load_config(config_path());
+
+        // Unknown keys are often typos; warn and carry on.
+        for (const std::string& key : config.unknown_keys) {
+            print_warning("Unknown config key \"" + key + "\" (ignored)");
+        }
+
+        // Settings from the config.
+        find_options.output = config.output_directory;
+        find_options.max_dimension = config.max_dimension;
+
         if (find_command->parsed()) return run_find(find_options);
     } catch (const cv::Exception& e) {
         // Most likely a corrupt model file, but any OpenCV failure ends up here.
         print_error(std::string("OpenCV failed (a model file may be corrupt):\n") + e.what());
         return 1;
     } catch (const std::exception& e) {
+        // Also config errors: missing file, bad JSON, missing key, wrong value.
         print_error(e.what());
         return 1;
     }

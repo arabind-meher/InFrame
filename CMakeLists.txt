@@ -54,6 +54,8 @@ add_executable(
         src/cli/console.h
         src/cli/commands.cpp
         src/cli/commands.h
+        src/cli/config.cpp
+        src/cli/config.h
 )
 
 target_link_libraries(
@@ -70,6 +72,12 @@ add_custom_command(
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/models/face_detection_yunet_2023mar.onnx $<TARGET_FILE_DIR:inframe>/models
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/models/face_recognition_sface_2021dec.onnx $<TARGET_FILE_DIR:inframe>/models
         COMMENT "Copying Models"
+)
+
+target_compile_definitions(
+        inframe
+        PRIVATE
+        INFRAME_ROOT="${CMAKE_SOURCE_DIR}"
 )
 
 # /W4 on project targets only (not as errors).

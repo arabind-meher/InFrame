@@ -1,6 +1,9 @@
 #include "commands.h"
 
+#include <chrono>
 #include <filesystem>
+#include <format>
+#include <string>
 #include <vector>
 
 #include "album_directory.h"
@@ -10,11 +13,23 @@
 #include "photo_results.h"
 #include "reference_directory.h"
 
+// Local start time as YYYYMMDD_HHMMSS (sortable, no ':' for Windows).
+static std::string run_folder_name() {
+    // Whole seconds, so %S prints no fractions.
+    const auto now = std::chrono::system_clock::now();
+    const auto seconds = std::chrono::floor<std::chrono::seconds>(now);
+
+    // system_clock is UTC; zoned_time shows it in the Windows time zone.
+    const std::chrono::zoned_time local{std::chrono::current_zone(), seconds};
+    return std::format("{:%Y%m%d_%H%M%S}", local);
+}
+
 int run_find(const FindOptions& options) {
     // Album: photos to search. References: photos of the person to find.
     AlbumDirectory album_dir(options.album, options.max_dimension);
     ReferenceDirectory reference_dir(options.reference, options.max_dimension);
-    OutputDirectory output_dir(options.output);
+    // Output: a new date-time subfolder of the base folder for every run.
+    OutputDirectory output_dir(options.output / run_folder_name());
 
     // Check everything first and report all problems at once.
     std::vector<SetupProblem> setup_problems =
