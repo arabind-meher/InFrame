@@ -14,6 +14,8 @@ struct FindOptions {
     int max_dimension;
     // Model files and match threshold.
     ModelSettings models;
+    // Copy matches into a new output folder (otherwise only list them).
+    bool copy = false;
 };
 
 // Finds the person in the album and copies matches; returns the exit code.

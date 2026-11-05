@@ -37,11 +37,12 @@ int run_find(const FindOptions& options) {
     print_problems(setup_problems);
     if (!setup_problems.empty()) return 1;
 
-    // Output: created once here (only after validation), then matches are copied in.
-    if (!output_dir.create()) {
+    // Output: created only when copying (and only after validation).
+    if (options.copy && !output_dir.create()) {
         print_error("Could not create output folder: " + output_dir.directory_path().string());
         return 1;
     }
+    if (options.copy) print_detail("Output folder: " + output_dir.directory_path().string());
 
     // Exceptions (e.g. a corrupt model) are caught in main.
     PhotoFinder photo_finder(options.models);
@@ -63,9 +64,14 @@ int run_find(const FindOptions& options) {
     std::vector<PhotoResult> photo_results = photo_finder.process_album(album_dir);
     print_results(photo_results);
 
-    // Copy and summary
-    int copy_count = PhotoFinder::copy_matches(photo_results, output_dir);
-    print_summary(photo_results, copy_count, output_dir);
+    // Summary, then copy (with --copy) or a hint how to copy.
+    print_summary(photo_results);
+    if (options.copy) {
+        int copy_count = PhotoFinder::copy_matches(photo_results, output_dir);
+        print_copy_result(photo_results, copy_count, output_dir);
+    } else {
+        print_copy_hint(photo_results);
+    }
 
     return 0;
 }

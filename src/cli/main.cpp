@@ -15,6 +15,16 @@ int main(int argc, char* argv[]) {
     CLI::App cli("Find a person in your photo album.");
     cli.name("inframe");
     cli.require_subcommand(1);
+    // Lets app flags like --quiet come after the subcommand too.
+    cli.fallthrough();
+
+    // Output level, for every subcommand; can't use both.
+    bool quiet = false;
+    bool verbose = false;
+    CLI::Option* quiet_option = cli.add_flag("-q,--quiet", quiet, "Only print the summary");
+    CLI::Option* verbose_option =
+        cli.add_flag("-v,--verbose", verbose, "Also print non-matches and details");
+    quiet_option->excludes(verbose_option);
 
     // find: CLI11 writes the flag values straight into find_options.
     FindOptions find_options;
@@ -24,6 +34,8 @@ int main(int argc, char* argv[]) {
         ->required();
     find_command->add_option("--refs", find_options.reference, "Folder of photos of the person")
         ->required();
+    find_command->add_flag("--copy", find_options.copy,
+                           "Copy matched photos into a new output folder");
 
     // Parse: help exits 0, any usage mistake exits 2.
     try {
@@ -32,6 +44,14 @@ int main(int argc, char* argv[]) {
         int code = cli.exit(e);
         return code == 0 ? 0 : 2;
     }
+
+    // Every print function checks this from now on.
+    if (quiet)
+        set_verbosity(Verbosity::Quiet);
+    else if (verbose)
+        set_verbosity(Verbosity::Verbose);
+    else
+        set_verbosity(Verbosity::Normal);
 
     // Run: the one place runtime errors are caught.
     try {
@@ -50,6 +70,12 @@ int main(int argc, char* argv[]) {
         find_options.models.detector_path = config.model_directory / config.detector_model;
         find_options.models.recognizer_path = config.model_directory / config.recognizer_model;
         find_options.models.match_threshold = config.match_threshold;
+
+        // Verbose only: where the settings came from.
+        print_detail("Config: " + config_path().string());
+        print_detail("Detector: " + find_options.models.detector_path.string());
+        print_detail("Recognizer: " + find_options.models.recognizer_path.string());
+        print_detail("Match threshold: " + std::to_string(config.match_threshold));
 
         if (find_command->parsed()) return run_find(find_options);
     } catch (const cv::Exception& e) {

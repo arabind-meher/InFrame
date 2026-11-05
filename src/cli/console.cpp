@@ -24,7 +24,20 @@ static std::string problem_message(SetupProblem problem) {
     return "Unknown setup problem.";
 }
 
-void print_info(const std::string& message) { std::cout << message << std::endl; }
+// The current output level, shared by every print function in this file.
+static Verbosity current_verbosity = Verbosity::Normal;
+
+void set_verbosity(Verbosity verbosity) { current_verbosity = verbosity; }
+
+void print_info(const std::string& message) {
+    if (current_verbosity == Verbosity::Quiet) return;
+    std::cout << message << std::endl;
+}
+
+void print_detail(const std::string& message) {
+    if (current_verbosity != Verbosity::Verbose) return;
+    std::cout << "  " << message << std::endl;
+}
 
 // Warnings and errors go to stderr, so they still show when output is redirected.
 void print_warning(const std::string& message) { std::cerr << "Warning: " << message << std::endl; }
@@ -51,32 +64,64 @@ void print_no_references(const std::filesystem::path& reference_dir) {
     print_error("No usable reference images in " + reference_dir.string());
 }
 
+// One result line: label, path, faces, score and tag.
+static void print_result_line(const std::string& label, const PhotoResult& photo_result) {
+    std::cout << label << photo_result.path.string() << " (" << photo_result.face_count
+              << " faces, score " << photo_result.best_score << ", "
+              << photo_tag_name(photo_result.tag) << ")" << std::endl;
+}
+
 void print_results(const std::vector<PhotoResult>& photo_results) {
     for (const PhotoResult& photo_result : photo_results) {
         if (!photo_result.loaded) {
+            // A warning, so it shows even when quiet.
             print_warning("Skipped (unreadable): " + photo_result.path.string());
         } else if (photo_result.matched) {
-            // Non-matching photos print nothing.
-            std::cout << "MATCHED: " << photo_result.path.string() << " ("
-                      << photo_result.face_count << " faces, score " << photo_result.best_score
-                      << ", " << photo_tag_name(photo_result.tag) << ")" << std::endl;
+            if (current_verbosity != Verbosity::Quiet) print_result_line("MATCHED:  ", photo_result);
+        } else {
+            if (current_verbosity == Verbosity::Verbose) print_result_line("no match: ", photo_result);
         }
     }
 }
 
-void print_summary(const std::vector<PhotoResult>& photo_results, int copy_count,
-                   const OutputDirectory& output_dir) {
-    // Count here, so commands needs no counters.
+// Counted here, so commands needs no counters.
+static int count_matched(const std::vector<PhotoResult>& photo_results) {
     int matched_count = 0;
+    for (const PhotoResult& photo_result : photo_results) {
+        if (photo_result.matched) matched_count++;
+    }
+    return matched_count;
+}
+
+void print_summary(const std::vector<PhotoResult>& photo_results) {
     int unreadable_count = 0;
     for (const PhotoResult& photo_result : photo_results) {
         if (!photo_result.loaded) unreadable_count++;
-        if (photo_result.matched) matched_count++;
     }
 
     std::cout << std::endl << "Summary" << std::endl;
-    std::cout << "Matched " << matched_count << " of " << photo_results.size() << " photos ("
-              << unreadable_count << " unreadable)" << std::endl;
+    std::cout << "Matched " << count_matched(photo_results) << " of " << photo_results.size()
+              << " photos (" << unreadable_count << " unreadable)" << std::endl;
+}
+
+void print_copy_result(const std::vector<PhotoResult>& photo_results, int copy_count,
+                       const OutputDirectory& output_dir) {
+    int matched_count = count_matched(photo_results);
+
     std::cout << "Copied " << copy_count << " of " << matched_count << " to "
               << output_dir.directory_path().string() << std::endl;
+
+    // A failed copy doesn't stop the run, but the user should know.
+    int failed_count = matched_count - copy_count;
+    if (failed_count > 0) {
+        print_warning(std::to_string(failed_count) + " photos could not be copied");
+    }
+}
+
+void print_copy_hint(const std::vector<PhotoResult>& photo_results) {
+    // No matches: nothing to copy, so no hint. Quiet: summary only.
+    if (current_verbosity == Verbosity::Quiet) return;
+    if (count_matched(photo_results) == 0) return;
+
+    print_info("Add --copy to copy them into a new output folder.");
 }
