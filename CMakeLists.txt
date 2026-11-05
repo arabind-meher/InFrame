@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(OpenCV CONFIG REQUIRED)
+find_package(CLI11 CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 # Core logic, kept separate from the CLI so a future GUI can reuse it.
 add_library(
@@ -25,13 +27,13 @@ add_library(
         src/core/reference_directory.h
         src/core/output_directory.cpp
         src/core/output_directory.h
-        src/core/model_paths.cpp
-        src/core/model_paths.h
         src/core/photo_results.h
         src/core/photo_finder.cpp
         src/core/photo_finder.h
 )
+
 target_include_directories(inframe_core PUBLIC src/core)
+
 target_link_libraries(
         inframe_core
         PUBLIC
@@ -43,17 +45,31 @@ target_link_libraries(
 )
 
 # Command-line program.
-add_executable(inframe src/cli/main.cpp
+add_executable(
+        inframe
+        src/cli/main.cpp
         src/cli/console.cpp
-        src/cli/console.h)
-target_link_libraries(inframe PRIVATE inframe_core)
+        src/cli/console.h
+        src/cli/commands.cpp
+        src/cli/commands.h
+        src/cli/config.cpp
+        src/cli/config.h
+)
 
-add_custom_command(
-        TARGET inframe POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:inframe>/models
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/models/face_detection_yunet_2023mar.onnx $<TARGET_FILE_DIR:inframe>/models
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/models/face_recognition_sface_2021dec.onnx $<TARGET_FILE_DIR:inframe>/models
-        COMMENT "Copying Models"
+target_link_libraries(
+        inframe
+        PRIVATE
+        inframe_core
+        CLI11::CLI11
+        nlohmann_json::nlohmann_json
+)
+
+# Project root (finds config.json) and version (for --version), passed to the CLI code.
+target_compile_definitions(
+        inframe
+        PRIVATE
+        INFRAME_ROOT="${CMAKE_SOURCE_DIR}"
+        INFRAME_VERSION="${PROJECT_VERSION}"
 )
 
 # /W4 on project targets only (not as errors).

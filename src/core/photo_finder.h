@@ -19,11 +19,19 @@ enum class SetupProblem {
     RecognizerModelMissing
 };
 
+// Which models to load and what score counts as a match; filled by the caller.
+struct ModelSettings {
+    std::filesystem::path detector_path;
+    std::filesystem::path recognizer_path;
+    // Lowest similarity score that counts as a match (belongs to the recognizer model).
+    double match_threshold;
+};
+
 // Finds a person in an album: the one class the CLI and GUI call.
 class PhotoFinder {
 public:
-    // Loads both models from the models directory.
-    PhotoFinder();
+    // Loads both models; call validate first so missing files are reported nicely.
+    explicit PhotoFinder(const ModelSettings& model_settings);
 
     // Learns the person from photos with exactly one face; returns the skipped photos.
     std::vector<std::filesystem::path> load_references(const ReferenceDirectory& reference_dir);
@@ -41,14 +49,21 @@ public:
     static int copy_matches(const std::vector<PhotoResult>& photo_results,
                             const OutputDirectory& output_dir);
 
+    // Checks the album and models only (for runs without references). Empty means OK.
+    static std::vector<SetupProblem> validate(const AlbumDirectory& album_dir,
+                                              const ModelSettings& model_settings);
+
     // Checks directories and models before constructing. Empty means OK.
     static std::vector<SetupProblem> validate(const AlbumDirectory& album_dir,
                                               const ReferenceDirectory& reference_dir,
-                                              const OutputDirectory& output_dir);
+                                              const OutputDirectory& output_dir,
+                                              const ModelSettings& model_settings);
 
 private:
     FaceDetector detector_;
     FaceRecognizer recognizer_;
+    // From ModelSettings; used by process_photo.
+    double match_threshold_;
 
     // One embedding per usable reference photo.
     std::vector<cv::Mat> reference_embeddings_;

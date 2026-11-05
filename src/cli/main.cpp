@@ -1,76 +1,110 @@
-#include <filesystem>
-#include <iostream>
+#include <CLI/CLI.hpp>
+#include <exception>
+#include <opencv2/core.hpp>
 #include <opencv2/core/utils/logger.hpp>
-#include <vector>
+#include <string>
 
-#include "album_directory.h"
+#include "commands.h"
+#include "config.h"
 #include "console.h"
-#include "output_directory.h"
-#include "photo_finder.h"
-#include "photo_results.h"
-#include "reference_directory.h"
-
-// Images are shrunk to this size before detection.
-static constexpr int kMaxDimension = 1280;
 
 int main(int argc, char* argv[]) {
     cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_WARNING);
 
-    // Check Arguments
-    if (argc != 4) {
-        std::cerr << "Usage: inframe <album_dir> <reference_dir> <output_dir>" << std::endl;
-        return 2;
-    }
+    // App: exactly one subcommand must be given.
+    CLI::App cli("Find a person in your photo album.");
+    cli.name("inframe");
+    cli.require_subcommand(1);
 
-    // Album: photos to search. References: photos of the person to find.
-    AlbumDirectory album_dir(argv[1], kMaxDimension);
-    ReferenceDirectory reference_dir(argv[2], kMaxDimension);
-    OutputDirectory output_directory(argv[3]);
+    // --version prints and exits 0, like --help; the number comes from CMake's project VERSION.
+    cli.set_version_flag("--version", "inframe " + std::string(INFRAME_VERSION));
 
-    // Check everything first and report all problems at once.
-    std::vector<SetupProblem> problems =
-        PhotoFinder::validate(album_dir, reference_dir, output_directory);
-    print_problem(problems);
-    if (!problems.empty()) return 1;
+    // Lets app flags like --quiet come after the subcommand too.
+    cli.fallthrough();
 
-    // Output: created once here (only after validation), then matches are copied in.
-    if (!output_directory.create()) {
-        std::cerr << "Failed to create output folder: "
-                  << output_directory.directory_path().string() << std::endl;
-        return 1;
-    }
+    // Output level, for every subcommand; can't use both.
+    bool quiet = false;
+    bool verbose = false;
+    CLI::Option* quiet_option = cli.add_flag("-q,--quiet", quiet, "Only print the summary");
+    CLI::Option* verbose_option =
+        cli.add_flag("-v,--verbose", verbose, "Also print non-matches and details");
+    quiet_option->excludes(verbose_option);
 
+    // find: CLI11 writes the flag values straight into find_options.
+    FindOptions find_options;
+
+    CLI::App* find_command = cli.add_subcommand("find", "Find photos of a person in an album");
+    find_command->add_option("--album", find_options.album, "Folder of photos to search")
+        ->required();
+    find_command->add_option("--refs", find_options.reference, "Folder of photos of the person")
+        ->required();
+    find_command->add_flag("--copy", find_options.copy,
+                           "Copy matched photos into a new output folder");
+
+    // scan: album only; lists faces and tags, writes nothing.
+    ScanOptions scan_options;
+
+    CLI::App* scan_command = cli.add_subcommand("scan", "List face counts and tags for an album");
+    scan_command->add_option("--album", scan_options.album, "Folder of photos to scan")->required();
+
+    // Parse: help exits 0, any usage mistake exits 2.
     try {
-        PhotoFinder photo_finder;
+        cli.parse(argc, argv);
+    } catch (const CLI::ParseError& e) {
+        int code = cli.exit(e);
+        return code == 0 ? 0 : 2;
+    }
 
-        // References
-        std::cout << "Loading reference images" << std::endl;
-        std::vector<std::filesystem::path> skipped_paths =
-            photo_finder.load_references(reference_dir);
-        print_skipped_reference(skipped_paths);
+    // Every print function checks this from now on.
+    if (quiet)
+        set_verbosity(Verbosity::Quiet);
+    else if (verbose)
+        set_verbosity(Verbosity::Verbose);
+    else
+        set_verbosity(Verbosity::Normal);
 
-        int reference_size = photo_finder.reference_count();
-        if (reference_size == 0) {
-            std::cerr << "No usable reference images in "
-                      << reference_dir.directory_path().string() << std::endl;
-            return 1;
+    // Run: the one place runtime errors are caught.
+    try {
+        // Config: everything except album and refs comes from config.json.
+        Config config = load_config(config_path());
+
+        // Unknown keys are often typos; warn and carry on.
+        for (const std::string& key : config.unknown_keys) {
+            print_warning("Unknown config key \"" + key + "\" (ignored)");
         }
-        std::cout << "Using " << reference_size << " reference images" << std::endl;
 
-        // Album
-        std::cout << std::endl << "Searching album" << std::endl;
-        std::vector<PhotoResult> photo_results = photo_finder.process_album(album_dir);
-        print_results(photo_results);
+        // Models: built once, shared by every subcommand.
+        // model_directory is already absolute, so the joined paths are too.
+        ModelSettings models;
+        models.detector_path = config.model_directory / config.detector_model;
+        models.recognizer_path = config.model_directory / config.recognizer_model;
+        models.match_threshold = config.match_threshold;
 
-        // Copy and summary
-        int copy_count = PhotoFinder::copy_matches(photo_results, output_directory);
-        print_summary(photo_results, copy_count, output_directory);
+        // Settings from the config; filled for both, only one subcommand runs.
+        find_options.output = config.output_directory;
+        find_options.max_dimension = config.max_dimension;
+        find_options.models = models;
+        scan_options.max_dimension = config.max_dimension;
+        scan_options.models = models;
+
+        // Verbose only: where the settings came from.
+        print_detail("Config: " + config_path().string());
+        print_detail("Detector: " + models.detector_path.string());
+        print_detail("Recognizer: " + models.recognizer_path.string());
+        print_detail("Match threshold: " + std::to_string(models.match_threshold));
+
+        if (find_command->parsed()) return run_find(find_options);
+        if (scan_command->parsed()) return run_scan(scan_options);
     } catch (const cv::Exception& e) {
         // Most likely a corrupt model file, but any OpenCV failure ends up here.
-        std::cerr << "OpenCV error (a model file may be corrupt):" << std::endl
-                  << e.what() << std::endl;
+        print_error(std::string("OpenCV failed (a model file may be corrupt):\n") + e.what());
+        return 1;
+    } catch (const std::exception& e) {
+        // Also config errors: missing file, bad JSON, missing key, wrong value.
+        print_error(e.what());
         return 1;
     }
 
+    // Never reached: a subcommand always runs.
     return 0;
 }

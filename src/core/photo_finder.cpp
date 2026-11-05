@@ -2,11 +2,11 @@
 
 #include <algorithm>
 
-#include "model_paths.h"
-
-PhotoFinder::PhotoFinder()
-    : detector_(model_directory() / kDetectorModelFile),
-      recognizer_(model_directory() / kRecognizerModelFile) {}
+// Same order as the members are declared in the header.
+PhotoFinder::PhotoFinder(const ModelSettings& model_settings)
+    : detector_(model_settings.detector_path),
+      recognizer_(model_settings.recognizer_path),
+      match_threshold_(model_settings.match_threshold) {}
 
 std::vector<std::filesystem::path> PhotoFinder::load_references(
     const ReferenceDirectory& reference_dir) {
@@ -41,6 +41,9 @@ std::vector<std::filesystem::path> PhotoFinder::load_references(
 int PhotoFinder::reference_count() const { return static_cast<int>(reference_embeddings_.size()); }
 
 double PhotoFinder::best_similarity_score(const cv::Mat& image, const std::vector<Face>& faces) {
+    // No references (e.g. scan): skip the slow embeddings, nothing to compare against.
+    if (reference_embeddings_.empty()) return -1.0;
+
     double best_score = -1.0;
 
     for (const Face& face : faces) {
@@ -71,7 +74,7 @@ PhotoResult PhotoFinder::process_photo(const AlbumDirectory& album_dir,
     int face_count = static_cast<int>(image_faces.size());
 
     // A photo matches if any face is close enough to any reference.
-    if (best_score >= kMatchThreshold) {
+    if (best_score >= match_threshold_) {
         photo_result.matched = true;
     }
 
@@ -107,21 +110,33 @@ int PhotoFinder::copy_matches(const std::vector<PhotoResult>& photo_results,
 
     return count;
 }
+
 std::vector<SetupProblem> PhotoFinder::validate(const AlbumDirectory& album_dir,
-                                                const ReferenceDirectory& reference_dir,
-                                                const OutputDirectory& output_dir) {
+                                                const ModelSettings& model_settings) {
     std::vector<SetupProblem> setup_problems;
 
     if (!album_dir.exists()) setup_problems.push_back(SetupProblem::AlbumMissing);
+
+    // Model paths come from the caller (the CLI reads them from config.json).
+    if (!std::filesystem::exists(model_settings.detector_path))
+        setup_problems.push_back(SetupProblem::DetectorModelMissing);
+    if (!std::filesystem::exists(model_settings.recognizer_path))
+        setup_problems.push_back(SetupProblem::RecognizerModelMissing);
+
+    return setup_problems;
+}
+
+std::vector<SetupProblem> PhotoFinder::validate(const AlbumDirectory& album_dir,
+                                                const ReferenceDirectory& reference_dir,
+                                                const OutputDirectory& output_dir,
+                                                const ModelSettings& model_settings) {
+    // Album and models first, then the checks that need references and output.
+    std::vector<SetupProblem> setup_problems = validate(album_dir, model_settings);
+
     if (!reference_dir.exists()) setup_problems.push_back(SetupProblem::ReferenceMissing);
 
     if (album_dir.contains(output_dir.directory_path()))
         setup_problems.push_back(SetupProblem::OutputInsideAlbum);
-
-    if (!std::filesystem::exists(model_directory() / kDetectorModelFile))
-        setup_problems.push_back(SetupProblem::DetectorModelMissing);
-    if (!std::filesystem::exists(model_directory() / kRecognizerModelFile))
-        setup_problems.push_back(SetupProblem::RecognizerModelMissing);
 
     return setup_problems;
 }

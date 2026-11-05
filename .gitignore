@@ -86,6 +86,10 @@ albums/
 album/
 photos/
 images/
+output/
 
 # Scratch files (sample images, outputs)
 tmp/
+
+# config file
+/config.json
