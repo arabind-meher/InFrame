@@ -1,7 +1,9 @@
 #include "console.h"
 
+#include <format>
 #include <iostream>
 #include <string>
+#include <string_view>
 
 #include "photo_tagger.h"
 
@@ -29,6 +31,24 @@ static Verbosity current_verbosity = Verbosity::Normal;
 
 void set_verbosity(Verbosity verbosity) { current_verbosity = verbosity; }
 
+std::string display_path(const std::filesystem::path& path) {
+    // make_preferred changes the path itself, so work on a copy.
+    std::filesystem::path shown = path;
+    shown.make_preferred();
+    return shown.string();
+}
+
+// "1 face", "2 faces": the count with the right word.
+static std::string count_text(int count, std::string_view singular, std::string_view plural) {
+    return std::format("{} {}", count, count == 1 ? singular : plural);
+}
+
+// Score with 2 decimals; "-" when there were no faces (score -1).
+static std::string score_text(double score) {
+    if (score < 0.0) return "-";
+    return std::format("{:.2f}", score);
+}
+
 void print_info(const std::string& message) {
     if (current_verbosity == Verbosity::Quiet) return;
     std::cout << message << std::endl;
@@ -52,30 +72,31 @@ void print_problems(const std::vector<SetupProblem>& setup_problems) {
 
 void print_skipped_references(const std::vector<std::filesystem::path>& skipped_paths) {
     for (const std::filesystem::path& image_path : skipped_paths) {
-        print_warning("Skipped reference (needs exactly one face): " + image_path.string());
+        print_warning("Skipped reference (needs exactly one face): " + display_path(image_path));
     }
 }
 
 void print_reference_count(int count) {
-    print_info("Using " + std::to_string(count) + " reference images");
+    print_info("Using " + count_text(count, "reference image", "reference images"));
 }
 
 void print_no_references(const std::filesystem::path& reference_dir) {
-    print_error("No usable reference images in " + reference_dir.string());
+    print_error("No usable reference images in " + display_path(reference_dir));
 }
 
 // One result line: label, path, faces, score and tag.
 static void print_result_line(const std::string& label, const PhotoResult& photo_result) {
-    std::cout << label << photo_result.path.string() << " (" << photo_result.face_count
-              << " faces, score " << photo_result.best_score << ", "
-              << photo_tag_name(photo_result.tag) << ")" << std::endl;
+    std::cout << std::format("{}{} ({}, score {}, {})", label, display_path(photo_result.path),
+                             count_text(photo_result.face_count, "face", "faces"),
+                             score_text(photo_result.best_score), photo_tag_name(photo_result.tag))
+              << std::endl;
 }
 
 void print_results(const std::vector<PhotoResult>& photo_results) {
     for (const PhotoResult& photo_result : photo_results) {
         if (!photo_result.loaded) {
             // A warning, so it shows even when quiet.
-            print_warning("Skipped (unreadable): " + photo_result.path.string());
+            print_warning("Skipped (unreadable): " + display_path(photo_result.path));
         } else if (photo_result.matched) {
             if (current_verbosity != Verbosity::Quiet) print_result_line("MATCHED:  ", photo_result);
         } else {
@@ -100,21 +121,24 @@ void print_summary(const std::vector<PhotoResult>& photo_results) {
     }
 
     std::cout << std::endl << "Summary" << std::endl;
-    std::cout << "Matched " << count_matched(photo_results) << " of " << photo_results.size()
-              << " photos (" << unreadable_count << " unreadable)" << std::endl;
+    std::cout << std::format("Matched {} of {} ({} unreadable)", count_matched(photo_results),
+                             count_text(static_cast<int>(photo_results.size()), "photo", "photos"),
+                             unreadable_count)
+              << std::endl;
 }
 
 void print_copy_result(const std::vector<PhotoResult>& photo_results, int copy_count,
                        const OutputDirectory& output_dir) {
     int matched_count = count_matched(photo_results);
 
-    std::cout << "Copied " << copy_count << " of " << matched_count << " to "
-              << output_dir.directory_path().string() << std::endl;
+    std::cout << std::format("Copied {} of {} to {}", copy_count, matched_count,
+                             display_path(output_dir.directory_path()))
+              << std::endl;
 
     // A failed copy doesn't stop the run, but the user should know.
     int failed_count = matched_count - copy_count;
     if (failed_count > 0) {
-        print_warning(std::to_string(failed_count) + " photos could not be copied");
+        print_warning(count_text(failed_count, "photo", "photos") + " could not be copied");
     }
 }
 
@@ -129,11 +153,13 @@ void print_copy_hint(const std::vector<PhotoResult>& photo_results) {
 void print_scan_results(const std::vector<PhotoResult>& photo_results) {
     for (const PhotoResult& photo_result : photo_results) {
         if (!photo_result.loaded) {
-            print_warning("Skipped (unreadable): " + photo_result.path.string());
+            print_warning("Skipped (unreadable): " + display_path(photo_result.path));
         } else if (current_verbosity != Verbosity::Quiet) {
             // No score: scan has no references, so it is always -1.
-            std::cout << photo_result.path.string() << " (" << photo_result.face_count
-                      << " faces, " << photo_tag_name(photo_result.tag) << ")" << std::endl;
+            std::cout << std::format("{} ({}, {})", display_path(photo_result.path),
+                                     count_text(photo_result.face_count, "face", "faces"),
+                                     photo_tag_name(photo_result.tag))
+                      << std::endl;
         }
     }
 }
@@ -164,7 +190,8 @@ void print_scan_summary(const std::vector<PhotoResult>& photo_results) {
     }
 
     std::cout << std::endl << "Summary" << std::endl;
-    std::cout << "Scanned " << photo_results.size() << " photos: " << scenery_count << " scenery, "
-              << solo_count << " solo, " << group_count << " group (" << unreadable_count
-              << " unreadable)" << std::endl;
+    std::cout << std::format("Scanned {}: {} scenery, {} solo, {} group ({} unreadable)",
+                             count_text(static_cast<int>(photo_results.size()), "photo", "photos"),
+                             scenery_count, solo_count, group_count, unreadable_count)
+              << std::endl;
 }

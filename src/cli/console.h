@@ -16,6 +16,9 @@ enum class Verbosity { Quiet, Normal, Verbose };
 // Set once by main after parsing; Normal until then.
 void set_verbosity(Verbosity verbosity);
 
+// A path as shown to the user (Windows backslashes); used for every printed path.
+std::string display_path(const std::filesystem::path& path);
+
 // Prints a normal message (to stdout); hidden when quiet.
 void print_info(const std::string& message);
 

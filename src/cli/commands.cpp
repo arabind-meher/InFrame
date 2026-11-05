@@ -39,10 +39,10 @@ int run_find(const FindOptions& options) {
 
     // Output: created only when copying (and only after validation).
     if (options.copy && !output_dir.create()) {
-        print_error("Could not create output folder: " + output_dir.directory_path().string());
+        print_error("Could not create output folder: " + display_path(output_dir.directory_path()));
         return 1;
     }
-    if (options.copy) print_detail("Output folder: " + output_dir.directory_path().string());
+    if (options.copy) print_detail("Output folder: " + display_path(output_dir.directory_path()));
 
     // Exceptions (e.g. a corrupt model) are caught in main.
     PhotoFinder photo_finder(options.models);

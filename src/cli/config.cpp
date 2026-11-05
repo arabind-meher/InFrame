@@ -7,8 +7,10 @@
 #include <stdexcept>
 #include <string_view>
 
-// Project root, passed in by CMake (INFRAME_ROOT).
-static std::filesystem::path project_root() { return std::filesystem::path(INFRAME_ROOT); }
+// Project root, passed in by CMake (INFRAME_ROOT); backslashes, so joined paths match.
+static std::filesystem::path project_root() {
+    return std::filesystem::path(INFRAME_ROOT).make_preferred();
+}
 
 // Error that names the config file.
 static std::runtime_error config_error(const std::filesystem::path& file, const std::string& msg) {

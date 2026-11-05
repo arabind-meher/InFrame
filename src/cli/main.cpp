@@ -1,5 +1,6 @@
 #include <CLI/CLI.hpp>
 #include <exception>
+#include <format>
 #include <opencv2/core.hpp>
 #include <opencv2/core/utils/logger.hpp>
 #include <string>
@@ -88,10 +89,10 @@ int main(int argc, char* argv[]) {
         scan_options.models = models;
 
         // Verbose only: where the settings came from.
-        print_detail("Config: " + config_path().string());
-        print_detail("Detector: " + models.detector_path.string());
-        print_detail("Recognizer: " + models.recognizer_path.string());
-        print_detail("Match threshold: " + std::to_string(models.match_threshold));
+        print_detail("Config: " + display_path(config_path()));
+        print_detail("Detector: " + display_path(models.detector_path));
+        print_detail("Recognizer: " + display_path(models.recognizer_path));
+        print_detail(std::format("Match threshold: {:.3f}", models.match_threshold));
 
         if (find_command->parsed()) return run_find(find_options);
         if (scan_command->parsed()) return run_scan(scan_options);
