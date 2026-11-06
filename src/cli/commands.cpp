@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <format>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "album_directory.h"
@@ -24,6 +25,24 @@ static std::string run_folder_name() {
     return std::format("{:%Y%m%d_%H%M%S}", local);
 }
 
+// process_album, but one photo at a time with a progress bar (label: "Searching", "Scanning").
+static std::vector<PhotoResult> process_with_progress(
+    PhotoFinder& photo_finder, const AlbumDirectory& album_dir,
+    const std::vector<std::filesystem::path>& image_paths, std::string_view label) {
+    std::vector<PhotoResult> photo_results;
+    photo_results.reserve(image_paths.size());
+
+    int total = static_cast<int>(image_paths.size());
+    progress_start(label, total);
+    for (int i = 0; i < total; i++) {
+        photo_results.push_back(photo_finder.process_photo(album_dir, image_paths[i]));
+        progress_update(i + 1);
+    }
+    progress_finish();
+
+    return photo_results;
+}
+
 int run_find(const FindOptions& options) {
     // Album: photos to search. References: photos of the person to find.
     AlbumDirectory album_dir(options.album, options.max_dimension);
@@ -37,32 +56,36 @@ int run_find(const FindOptions& options) {
     print_problems(setup_problems);
     if (!setup_problems.empty()) return 1;
 
+    // Header: album and its photo count; the list is reused for the loop below.
+    std::vector<std::filesystem::path> image_paths = album_dir.find_images();
+    print_album_line(options.album, static_cast<int>(image_paths.size()));
+
     // Output: created only when copying (and only after validation).
     if (options.copy && !output_dir.create()) {
-        print_error("Could not create output folder: " + output_dir.directory_path().string());
+        print_error("Could not create output folder: " + display_path(output_dir.directory_path()));
         return 1;
     }
-    if (options.copy) print_detail("Output folder: " + output_dir.directory_path().string());
+    if (options.copy) print_detail("Output folder: " + display_path(output_dir.directory_path()));
 
     // Exceptions (e.g. a corrupt model) are caught in main.
     PhotoFinder photo_finder(options.models);
 
-    // References
-    print_info("Loading reference images");
+    // References: header line with used and skipped counts, then the skipped ones.
     std::vector<std::filesystem::path> skipped_paths = photo_finder.load_references(reference_dir);
-    print_skipped_references(skipped_paths);
 
     int reference_size = photo_finder.reference_count();
     if (reference_size == 0) {
+        print_skipped_references(skipped_paths);
         print_no_references(reference_dir.directory_path());
         return 1;
     }
-    print_reference_count(reference_size);
+    print_reference_line(options.reference, reference_size, static_cast<int>(skipped_paths.size()));
+    print_skipped_references(skipped_paths);
 
-    // Album
-    print_info("\nSearching album");
-    std::vector<PhotoResult> photo_results = photo_finder.process_album(album_dir);
-    print_results(photo_results);
+    // Album: one photo at a time, so the progress bar can follow.
+    std::vector<PhotoResult> photo_results =
+        process_with_progress(photo_finder, album_dir, image_paths, "Searching");
+    print_results(photo_results, options.album);
 
     // Summary, then copy (with --copy) or a hint how to copy.
     print_summary(photo_results);
@@ -84,12 +107,16 @@ int run_scan(const ScanOptions& options) {
     print_problems(setup_problems);
     if (!setup_problems.empty()) return 1;
 
+    // Header: album and its photo count; the list is reused for the loop below.
+    std::vector<std::filesystem::path> image_paths = album_dir.find_images();
+    print_album_line(options.album, static_cast<int>(image_paths.size()));
+
     // No references loaded, so every photo gets faces and a tag but never matches.
     PhotoFinder photo_finder(options.models);
 
-    print_info("Scanning album");
-    std::vector<PhotoResult> photo_results = photo_finder.process_album(album_dir);
-    print_scan_results(photo_results);
+    std::vector<PhotoResult> photo_results =
+        process_with_progress(photo_finder, album_dir, image_paths, "Scanning");
+    print_scan_results(photo_results, options.album);
     print_scan_summary(photo_results);
 
     return 0;

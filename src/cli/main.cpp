@@ -1,5 +1,6 @@
 #include <CLI/CLI.hpp>
 #include <exception>
+#include <format>
 #include <opencv2/core.hpp>
 #include <opencv2/core/utils/logger.hpp>
 #include <string>
@@ -7,8 +8,12 @@
 #include "commands.h"
 #include "config.h"
 #include "console.h"
+#include "style.h"
 
 int main(int argc, char* argv[]) {
+    // First, so even --help and parse errors print in UTF-8.
+    init_utf8();
+
     cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_WARNING);
 
     // App: exactly one subcommand must be given.
@@ -30,6 +35,10 @@ int main(int argc, char* argv[]) {
         cli.add_flag("-v,--verbose", verbose, "Also print non-matches and details");
     quiet_option->excludes(verbose_option);
 
+    // Colour is on by default on a real console; this turns it off.
+    bool no_color = false;
+    cli.add_flag("--no-color", no_color, "Plain output without colours");
+
     // find: CLI11 writes the flag values straight into find_options.
     FindOptions find_options;
 
@@ -47,6 +56,9 @@ int main(int argc, char* argv[]) {
     CLI::App* scan_command = cli.add_subcommand("scan", "List face counts and tags for an album");
     scan_command->add_option("--album", scan_options.album, "Folder of photos to scan")->required();
 
+    // Windows passes argv in the ANSI code page; re-read it as UTF-8 so any folder name works.
+    argv = cli.ensure_utf8(argv);
+
     // Parse: help exits 0, any usage mistake exits 2.
     try {
         cli.parse(argc, argv);
@@ -54,6 +66,9 @@ int main(int argc, char* argv[]) {
         int code = cli.exit(e);
         return code == 0 ? 0 : 2;
     }
+
+    // Before any printing: decide colour per stream (CLI11's own parse errors stay plain).
+    init_styles(no_color);
 
     // Every print function checks this from now on.
     if (quiet)
@@ -87,11 +102,14 @@ int main(int argc, char* argv[]) {
         scan_options.max_dimension = config.max_dimension;
         scan_options.models = models;
 
+        // Header title first; verbose details go under it.
+        print_title();
+
         // Verbose only: where the settings came from.
-        print_detail("Config: " + config_path().string());
-        print_detail("Detector: " + models.detector_path.string());
-        print_detail("Recognizer: " + models.recognizer_path.string());
-        print_detail("Match threshold: " + std::to_string(models.match_threshold));
+        print_detail("Config: " + display_path(config_path()));
+        print_detail("Detector: " + display_path(models.detector_path));
+        print_detail("Recognizer: " + display_path(models.recognizer_path));
+        print_detail(std::format("Match threshold: {:.3f}", models.match_threshold));
 
         if (find_command->parsed()) return run_find(find_options);
         if (scan_command->parsed()) return run_scan(scan_options);

@@ -54,6 +54,8 @@ add_executable(
         src/cli/commands.h
         src/cli/config.cpp
         src/cli/config.h
+        src/cli/style.cpp
+        src/cli/style.h
 )
 
 target_link_libraries(
@@ -74,6 +76,7 @@ target_compile_definitions(
 
 # /W4 on project targets only (not as errors).
 if (MSVC)
-    target_compile_options(inframe_core PRIVATE /W4)
-    target_compile_options(inframe PRIVATE /W4)
+    # /utf-8: sources and text literals are UTF-8, and std::format pads by characters.
+    target_compile_options(inframe_core PRIVATE /W4 /utf-8)
+    target_compile_options(inframe PRIVATE /W4 /utf-8)
 endif ()
