@@ -1,5 +1,6 @@
 #include "console.h"
 
+#include <algorithm>
 #include <format>
 #include <iostream>
 #include <string>
@@ -70,39 +71,82 @@ void print_problems(const std::vector<SetupProblem>& setup_problems) {
     }
 }
 
+// "Label       value": labels in a 12-wide column, shared by the header and summaries.
+static std::string label_line(std::string_view label, const std::string& value) {
+    return std::format("  {:<12}{}", label, value);
+}
+
+void print_title() { print_info(std::string("InFrame ") + INFRAME_VERSION); }
+
+void print_album_line(const std::filesystem::path& album_dir, int photo_count) {
+    std::string note = count_text(photo_count, "photo", "photos");
+    print_info(label_line("Album", std::format("{}  ({})", display_path(album_dir), note)));
+}
+
+void print_reference_line(const std::filesystem::path& reference_dir, int used_count,
+                          int skipped_count) {
+    std::string note = std::format("{} used, {} skipped", used_count, skipped_count);
+    print_info(label_line("References", std::format("{}  ({})", display_path(reference_dir), note)));
+}
+
 void print_skipped_references(const std::vector<std::filesystem::path>& skipped_paths) {
     for (const std::filesystem::path& image_path : skipped_paths) {
         print_warning("Skipped reference (needs exactly one face): " + display_path(image_path));
     }
 }
 
-void print_reference_count(int count) {
-    print_info("Using " + count_text(count, "reference image", "reference images"));
-}
-
 void print_no_references(const std::filesystem::path& reference_dir) {
     print_error("No usable reference images in " + display_path(reference_dir));
 }
 
-// One result line: label, path, faces, score and tag.
-static void print_result_line(const std::string& label, const PhotoResult& photo_result) {
-    std::cout << std::format("{}{} ({}, score {}, {})", label, display_path(photo_result.path),
-                             count_text(photo_result.face_count, "face", "faces"),
-                             score_text(photo_result.best_score), photo_tag_name(photo_result.tag))
-              << std::endl;
+// Path shown in tables: relative to the album, e.g. beach\IMG_0031.jpg.
+static std::string table_path(const PhotoResult& photo_result,
+                              const std::filesystem::path& album_dir) {
+    return display_path(photo_result.path.lexically_relative(album_dir));
 }
 
-void print_results(const std::vector<PhotoResult>& photo_results) {
+// Warnings come after a table, so they don't interleave with its rows.
+static void print_unreadable(const std::vector<PhotoResult>& photo_results) {
     for (const PhotoResult& photo_result : photo_results) {
         if (!photo_result.loaded) {
-            // A warning, so it shows even when quiet.
             print_warning("Skipped (unreadable): " + display_path(photo_result.path));
-        } else if (photo_result.matched) {
-            if (current_verbosity != Verbosity::Quiet) print_result_line("MATCHED:  ", photo_result);
-        } else {
-            if (current_verbosity == Verbosity::Verbose) print_result_line("no match: ", photo_result);
         }
     }
+}
+
+// Which rows the find table shows at the current level.
+static bool shows_row(const PhotoResult& photo_result) {
+    if (!photo_result.loaded) return false;
+    if (photo_result.matched) return current_verbosity != Verbosity::Quiet;
+    return current_verbosity == Verbosity::Verbose;
+}
+
+void print_results(const std::vector<PhotoResult>& photo_results,
+                   const std::filesystem::path& album_dir) {
+    // Pass 1: width of the path column = longest path that will be shown.
+    size_t path_width = 0;
+    for (const PhotoResult& photo_result : photo_results) {
+        if (shows_row(photo_result)) {
+            path_width = std::max(path_width, table_path(photo_result, album_dir).size());
+        }
+    }
+
+    // Pass 2: one aligned row per shown photo; + match, - no match (symbols come later).
+    if (path_width > 0) {
+        std::cout << std::endl;
+        for (const PhotoResult& photo_result : photo_results) {
+            if (!shows_row(photo_result)) continue;
+            std::cout << std::format("  {}  {:<{}}  {:<8}  {:<8}  {:>4}",
+                                     photo_result.matched ? "+" : "-",
+                                     table_path(photo_result, album_dir), path_width,
+                                     count_text(photo_result.face_count, "face", "faces"),
+                                     photo_tag_name(photo_result.tag),
+                                     score_text(photo_result.best_score))
+                      << std::endl;
+        }
+    }
+
+    print_unreadable(photo_results);
 }
 
 // Counted here, so commands needs no counters.
@@ -114,16 +158,23 @@ static int count_matched(const std::vector<PhotoResult>& photo_results) {
     return matched_count;
 }
 
-void print_summary(const std::vector<PhotoResult>& photo_results) {
+static int count_unreadable(const std::vector<PhotoResult>& photo_results) {
     int unreadable_count = 0;
     for (const PhotoResult& photo_result : photo_results) {
         if (!photo_result.loaded) unreadable_count++;
     }
+    return unreadable_count;
+}
+
+// Summary lines go straight to stdout, so they show even when quiet.
+void print_summary(const std::vector<PhotoResult>& photo_results) {
+    std::string matched =
+        std::format("{} of {}", count_matched(photo_results),
+                    count_text(static_cast<int>(photo_results.size()), "photo", "photos"));
 
     std::cout << std::endl << "Summary" << std::endl;
-    std::cout << std::format("Matched {} of {} ({} unreadable)", count_matched(photo_results),
-                             count_text(static_cast<int>(photo_results.size()), "photo", "photos"),
-                             unreadable_count)
+    std::cout << label_line("Matched", matched) << std::endl;
+    std::cout << label_line("Unreadable", std::to_string(count_unreadable(photo_results)))
               << std::endl;
 }
 
@@ -131,9 +182,9 @@ void print_copy_result(const std::vector<PhotoResult>& photo_results, int copy_c
                        const OutputDirectory& output_dir) {
     int matched_count = count_matched(photo_results);
 
-    std::cout << std::format("Copied {} of {} to {}", copy_count, matched_count,
-                             display_path(output_dir.directory_path()))
-              << std::endl;
+    std::string copied = std::format("{} of {} to {}", copy_count, matched_count,
+                                     display_path(output_dir.directory_path()));
+    std::cout << label_line("Copied", copied) << std::endl;
 
     // A failed copy doesn't stop the run, but the user should know.
     int failed_count = matched_count - copy_count;
@@ -150,32 +201,43 @@ void print_copy_hint(const std::vector<PhotoResult>& photo_results) {
     print_info("Add --copy to copy them into a new output folder.");
 }
 
-void print_scan_results(const std::vector<PhotoResult>& photo_results) {
-    for (const PhotoResult& photo_result : photo_results) {
-        if (!photo_result.loaded) {
-            print_warning("Skipped (unreadable): " + display_path(photo_result.path));
-        } else if (current_verbosity != Verbosity::Quiet) {
-            // No score: scan has no references, so it is always -1.
-            std::cout << std::format("{} ({}, {})", display_path(photo_result.path),
-                                     count_text(photo_result.face_count, "face", "faces"),
-                                     photo_tag_name(photo_result.tag))
-                      << std::endl;
+void print_scan_results(const std::vector<PhotoResult>& photo_results,
+                        const std::filesystem::path& album_dir) {
+    // Quiet: summary only, but unreadable warnings still show.
+    if (current_verbosity != Verbosity::Quiet) {
+        // Pass 1: path column width.
+        size_t path_width = 0;
+        for (const PhotoResult& photo_result : photo_results) {
+            if (photo_result.loaded) {
+                path_width = std::max(path_width, table_path(photo_result, album_dir).size());
+            }
+        }
+
+        // Pass 2: no score column, scan has no references.
+        if (path_width > 0) {
+            std::cout << std::endl;
+            for (const PhotoResult& photo_result : photo_results) {
+                if (!photo_result.loaded) continue;
+                std::cout << std::format("  {:<{}}  {:<8}  {}", table_path(photo_result, album_dir),
+                                         path_width,
+                                         count_text(photo_result.face_count, "face", "faces"),
+                                         photo_tag_name(photo_result.tag))
+                          << std::endl;
+            }
         }
     }
+
+    print_unreadable(photo_results);
 }
 
 void print_scan_summary(const std::vector<PhotoResult>& photo_results) {
     int scenery_count = 0;
     int solo_count = 0;
     int group_count = 0;
-    int unreadable_count = 0;
 
     // Unreadable photos have no real tag, so they are counted apart.
     for (const PhotoResult& photo_result : photo_results) {
-        if (!photo_result.loaded) {
-            unreadable_count++;
-            continue;
-        }
+        if (!photo_result.loaded) continue;
         switch (photo_result.tag) {
             case PhotoTag::Scenery:
                 scenery_count++;
@@ -190,8 +252,10 @@ void print_scan_summary(const std::vector<PhotoResult>& photo_results) {
     }
 
     std::cout << std::endl << "Summary" << std::endl;
-    std::cout << std::format("Scanned {}: {} scenery, {} solo, {} group ({} unreadable)",
-                             count_text(static_cast<int>(photo_results.size()), "photo", "photos"),
-                             scenery_count, solo_count, group_count, unreadable_count)
+    std::cout << label_line("Photos", std::to_string(photo_results.size())) << std::endl;
+    std::cout << label_line("Scenery", std::to_string(scenery_count)) << std::endl;
+    std::cout << label_line("Solo", std::to_string(solo_count)) << std::endl;
+    std::cout << label_line("Group", std::to_string(group_count)) << std::endl;
+    std::cout << label_line("Unreadable", std::to_string(count_unreadable(photo_results)))
               << std::endl;
 }

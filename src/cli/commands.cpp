@@ -37,6 +37,10 @@ int run_find(const FindOptions& options) {
     print_problems(setup_problems);
     if (!setup_problems.empty()) return 1;
 
+    // Header: album and its photo count (step 5 reuses this list for the progress bar).
+    int photo_count = static_cast<int>(album_dir.find_images().size());
+    print_album_line(options.album, photo_count);
+
     // Output: created only when copying (and only after validation).
     if (options.copy && !output_dir.create()) {
         print_error("Could not create output folder: " + display_path(output_dir.directory_path()));
@@ -47,22 +51,22 @@ int run_find(const FindOptions& options) {
     // Exceptions (e.g. a corrupt model) are caught in main.
     PhotoFinder photo_finder(options.models);
 
-    // References
-    print_info("Loading reference images");
+    // References: header line with used and skipped counts, then the skipped ones.
     std::vector<std::filesystem::path> skipped_paths = photo_finder.load_references(reference_dir);
-    print_skipped_references(skipped_paths);
 
     int reference_size = photo_finder.reference_count();
     if (reference_size == 0) {
+        print_skipped_references(skipped_paths);
         print_no_references(reference_dir.directory_path());
         return 1;
     }
-    print_reference_count(reference_size);
+    print_reference_line(options.reference, reference_size, static_cast<int>(skipped_paths.size()));
+    print_skipped_references(skipped_paths);
 
     // Album
     print_info("\nSearching album");
     std::vector<PhotoResult> photo_results = photo_finder.process_album(album_dir);
-    print_results(photo_results);
+    print_results(photo_results, options.album);
 
     // Summary, then copy (with --copy) or a hint how to copy.
     print_summary(photo_results);
@@ -84,12 +88,16 @@ int run_scan(const ScanOptions& options) {
     print_problems(setup_problems);
     if (!setup_problems.empty()) return 1;
 
+    // Header: album and its photo count.
+    int photo_count = static_cast<int>(album_dir.find_images().size());
+    print_album_line(options.album, photo_count);
+
     // No references loaded, so every photo gets faces and a tag but never matches.
     PhotoFinder photo_finder(options.models);
 
-    print_info("Scanning album");
+    print_info("\nScanning album");
     std::vector<PhotoResult> photo_results = photo_finder.process_album(album_dir);
-    print_scan_results(photo_results);
+    print_scan_results(photo_results, options.album);
     print_scan_summary(photo_results);
 
     return 0;

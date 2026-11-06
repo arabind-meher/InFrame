@@ -88,6 +88,9 @@ int main(int argc, char* argv[]) {
         scan_options.max_dimension = config.max_dimension;
         scan_options.models = models;
 
+        // Header title first; verbose details go under it.
+        print_title();
+
         // Verbose only: where the settings came from.
         print_detail("Config: " + display_path(config_path()));
         print_detail("Detector: " + display_path(models.detector_path));

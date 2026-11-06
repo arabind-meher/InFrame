@@ -34,17 +34,26 @@ void print_error(const std::string& message);
 // Prints one error per setup problem.
 void print_problems(const std::vector<SetupProblem>& setup_problems);
 
+// Header: program name and version.
+void print_title();
+
+// Header: album folder and how many photos it has.
+void print_album_line(const std::filesystem::path& album_dir, int photo_count);
+
+// Header: reference folder, how many photos were used and skipped.
+void print_reference_line(const std::filesystem::path& reference_dir, int used_count,
+                          int skipped_count);
+
 // Prints one warning per skipped reference photo.
 void print_skipped_references(const std::vector<std::filesystem::path>& skipped_paths);
-
-// Prints how many reference photos are in use.
-void print_reference_count(int count);
 
 // Prints an error when no reference photo was usable.
 void print_no_references(const std::filesystem::path& reference_dir);
 
-// Warns per unreadable photo; a line per match (not quiet), per non-match (verbose).
-void print_results(const std::vector<PhotoResult>& photo_results);
+// Table of matches (not quiet) and non-matches (verbose), paths relative to the album;
+// then a warning per unreadable photo.
+void print_results(const std::vector<PhotoResult>& photo_results,
+                   const std::filesystem::path& album_dir);
 
 // Prints match counts at the end of a run.
 void print_summary(const std::vector<PhotoResult>& photo_results);
@@ -56,8 +65,9 @@ void print_copy_result(const std::vector<PhotoResult>& photo_results, int copy_c
 // Tells the user how to copy the matches (only if there are any).
 void print_copy_hint(const std::vector<PhotoResult>& photo_results);
 
-// scan: warns per unreadable photo; a line per photo with faces and tag (not quiet).
-void print_scan_results(const std::vector<PhotoResult>& photo_results);
+// scan: table of every photo with faces and tag (not quiet); then unreadable warnings.
+void print_scan_results(const std::vector<PhotoResult>& photo_results,
+                        const std::filesystem::path& album_dir);
 
 // scan: photo count per tag at the end of a run.
 void print_scan_summary(const std::vector<PhotoResult>& photo_results);
