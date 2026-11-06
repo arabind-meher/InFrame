@@ -44,12 +44,28 @@ Prerequisites (Windows):
   `VCPKG_ROOT` environment variable pointing to it
 
 Dependencies (OpenCV, CLI11, nlohmann-json) are installed automatically by vcpkg on first
-configure. Build with the debug preset from a "x64 Native Tools Command Prompt for VS" (or
-let CLion load the preset):
+configure. Build from a "x64 Native Tools Command Prompt for VS", or enable the presets in
+CLion (Settings → Build, Execution, Deployment → CMake).
+
+Release build (optimised, for normal use):
+
+```
+cmake --preset release
+cmake --build cmake-build-release
+```
+
+Debug build (for development and debugging):
 
 ```
 cmake --preset debug
 cmake --build cmake-build-debug
+```
+
+The executable is `inframe.exe` in the build folder, with the needed DLLs copied next to it.
+It reads `config.json` and `models/` from the project root, so it can be run from any folder:
+
+```
+cmake-build-release\inframe.exe --version
 ```
 
 ## Setup
