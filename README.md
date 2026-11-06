@@ -8,28 +8,30 @@ application that uses OpenCV and machine learning to sort a shared album by pers
 scenery, and group vs solo shots, so each person can pull out their own photos in
 seconds. It runs entirely on your machine, so no photos or face data are ever uploaded.
 
-## Status
+## Tech stack
 
-The command-line tool works: `find` picks out your photos and `scan` tags a whole album.
-🚧 More sorting options and a desktop app are still in development.
+- C++20, CMake with Ninja presets, MSVC
+- OpenCV 4 with two pretrained models from OpenCV Zoo: YuNet (face detection) and SFace
+  (face recognition)
+- CLI11 (command line), nlohmann-json (config file)
+- vcpkg for all dependencies
 
 ## Features
-
-Works now:
 
 - Find every photo you appear in, using a few reference photos of yourself
 - Tag photos as scenery (no faces), solo (one face) or group (two or more faces)
 - Point it at any folder of photos, including subfolders from different phones
   (`.jpg`, `.jpeg`, `.png`, `.bmp`)
 - Copy your matches into a new folder; the original album is never changed
+- Clear terminal output: aligned results table, progress bar and colours
 - Runs on Windows, fully offline
 
-Planned:
+## Future plans
 
-- Pick your face from the people InFrame detects, without reference photos
-- Tag photos by person
-- Sort copies into subfolders by tag
 - A desktop app on top of the same core
+- Pick people from the faces InFrame detects, without reference photos
+- Sort copies into folders by person and by tag (scenery, solo, group)
+- Faster repeat runs by saving face data for photos already scanned
 
 ## Building
 
@@ -87,6 +89,7 @@ inframe scan --album "D:\Photos\Goa Trip"
 | `--copy` | `find` | Copy the matches into a new output folder |
 | `-q`, `--quiet` | all | Only print the summary |
 | `-v`, `--verbose` | all | Also print non-matches and the settings in use |
+| `--no-color` | all | Plain output without colours (setting `NO_COLOR` does the same) |
 | `--help` | all | Show help |
 | `--version` | all | Show the version |
 
@@ -120,12 +123,28 @@ Relative paths are relative to the project root, so the tool works from any fold
    similarity at or above `match_threshold`).
 4. The tag comes from the number of faces: none is scenery, one is solo, more is group.
 
+## Project structure
+
+The code is split into a core library and a thin command-line front end, so a desktop app
+can later reuse the core unchanged.
+
+- `src/core/` (`inframe_core` library): no printing and no command-line parsing; data in,
+  data out.
+  - Directory classes: `AlbumDirectory` and `ReferenceDirectory` (both built on
+    `ImageDirectory`) find and load photos, shrunk to `max_dimension`; `OutputDirectory`
+    copies matches.
+  - Pipeline steps: `FaceDetector` (YuNet), `FaceRecognizer` (SFace), `classify_photo`
+    (tagging).
+  - `PhotoFinder`: one facade that checks the setup, loads the references and processes
+    each photo.
+- `src/cli/` (`inframe` executable): parses arguments, reads `config.json`, calls
+  `PhotoFinder` and prints the results (table, progress bar, colours).
+
 ## Privacy
 
 - Everything runs locally. No cloud services, no uploads, no network calls with your
   photos or face data.
-- This repository never contains personal photos. Tests and examples use licensed
-  stock or synthetic images.
+- This repository never contains personal photos.
 - Model files are downloaded during setup rather than stored in the repository.
 - `config.json` and the `output/` folder are git-ignored, so your paths and copied photos
   stay out of the repository.
