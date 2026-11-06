@@ -54,6 +54,8 @@ add_executable(
         src/cli/commands.h
         src/cli/config.cpp
         src/cli/config.h
+        src/cli/style.cpp
+        src/cli/style.h
 )
 
 target_link_libraries(

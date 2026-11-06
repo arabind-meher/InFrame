@@ -7,6 +7,7 @@
 #include <string_view>
 
 #include "photo_tagger.h"
+#include "style.h"
 
 // Text for one setup problem.
 static std::string problem_message(SetupProblem problem) {
@@ -57,13 +58,17 @@ void print_info(const std::string& message) {
 
 void print_detail(const std::string& message) {
     if (current_verbosity != Verbosity::Verbose) return;
-    std::cout << "  " << message << std::endl;
+    std::cout << styled(Style::Dim, "  " + message) << std::endl;
 }
 
 // Warnings and errors go to stderr, so they still show when output is redirected.
-void print_warning(const std::string& message) { std::cerr << "Warning: " << message << std::endl; }
+void print_warning(const std::string& message) {
+    std::cerr << styled(Style::Warning, "Warning: " + message, Stream::Err) << std::endl;
+}
 
-void print_error(const std::string& message) { std::cerr << "Error: " << message << std::endl; }
+void print_error(const std::string& message) {
+    std::cerr << styled(Style::Error, "Error: " + message, Stream::Err) << std::endl;
+}
 
 void print_problems(const std::vector<SetupProblem>& setup_problems) {
     for (SetupProblem problem : setup_problems) {
@@ -76,7 +81,7 @@ static std::string label_line(std::string_view label, const std::string& value) 
     return std::format("  {:<12}{}", label, value);
 }
 
-void print_title() { print_info(std::string("InFrame ") + INFRAME_VERSION); }
+void print_title() { print_info(styled(Style::Title, std::string("InFrame ") + INFRAME_VERSION)); }
 
 void print_album_line(const std::filesystem::path& album_dir, int photo_count) {
     std::string note = count_text(photo_count, "photo", "photos");
@@ -132,17 +137,23 @@ void print_results(const std::vector<PhotoResult>& photo_results,
     }
 
     // Pass 2: one aligned row per shown photo; + match, - no match (symbols come later).
+    // Pad first, colour after: colour codes would count as width and break the columns.
     if (path_width > 0) {
         std::cout << std::endl;
         for (const PhotoResult& photo_result : photo_results) {
             if (!shows_row(photo_result)) continue;
-            std::cout << std::format("  {}  {:<{}}  {:<8}  {:<8}  {:>4}",
-                                     photo_result.matched ? "+" : "-",
-                                     table_path(photo_result, album_dir), path_width,
-                                     count_text(photo_result.face_count, "face", "faces"),
-                                     photo_tag_name(photo_result.tag),
-                                     score_text(photo_result.best_score))
-                      << std::endl;
+            std::string cells = std::format("{:<{}}  {:<8}  {:<8}  {:>4}",
+                                            table_path(photo_result, album_dir), path_width,
+                                            count_text(photo_result.face_count, "face", "faces"),
+                                            photo_tag_name(photo_result.tag),
+                                            score_text(photo_result.best_score));
+
+            // Match: green status, readable row. No match: the whole row grey.
+            if (photo_result.matched) {
+                std::cout << "  " << styled(Style::Match, "+") << "  " << cells << std::endl;
+            } else {
+                std::cout << styled(Style::Dim, "  -  " + cells) << std::endl;
+            }
         }
     }
 
@@ -172,7 +183,7 @@ void print_summary(const std::vector<PhotoResult>& photo_results) {
         std::format("{} of {}", count_matched(photo_results),
                     count_text(static_cast<int>(photo_results.size()), "photo", "photos"));
 
-    std::cout << std::endl << "Summary" << std::endl;
+    std::cout << std::endl << styled(Style::Heading, "Summary") << std::endl;
     std::cout << label_line("Matched", matched) << std::endl;
     std::cout << label_line("Unreadable", std::to_string(count_unreadable(photo_results)))
               << std::endl;
@@ -198,7 +209,7 @@ void print_copy_hint(const std::vector<PhotoResult>& photo_results) {
     if (current_verbosity == Verbosity::Quiet) return;
     if (count_matched(photo_results) == 0) return;
 
-    print_info("Add --copy to copy them into a new output folder.");
+    print_info(styled(Style::Dim, "Add --copy to copy them into a new output folder."));
 }
 
 void print_scan_results(const std::vector<PhotoResult>& photo_results,
@@ -251,7 +262,7 @@ void print_scan_summary(const std::vector<PhotoResult>& photo_results) {
         }
     }
 
-    std::cout << std::endl << "Summary" << std::endl;
+    std::cout << std::endl << styled(Style::Heading, "Summary") << std::endl;
     std::cout << label_line("Photos", std::to_string(photo_results.size())) << std::endl;
     std::cout << label_line("Scenery", std::to_string(scenery_count)) << std::endl;
     std::cout << label_line("Solo", std::to_string(solo_count)) << std::endl;

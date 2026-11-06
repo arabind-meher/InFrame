@@ -8,6 +8,7 @@
 #include "commands.h"
 #include "config.h"
 #include "console.h"
+#include "style.h"
 
 int main(int argc, char* argv[]) {
     cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_WARNING);
@@ -30,6 +31,10 @@ int main(int argc, char* argv[]) {
     CLI::Option* verbose_option =
         cli.add_flag("-v,--verbose", verbose, "Also print non-matches and details");
     quiet_option->excludes(verbose_option);
+
+    // Colour is on by default on a real console; this turns it off.
+    bool no_color = false;
+    cli.add_flag("--no-color", no_color, "Plain output without colours");
 
     // find: CLI11 writes the flag values straight into find_options.
     FindOptions find_options;
@@ -55,6 +60,9 @@ int main(int argc, char* argv[]) {
         int code = cli.exit(e);
         return code == 0 ? 0 : 2;
     }
+
+    // Before any printing: decide colour per stream (CLI11's own parse errors stay plain).
+    init_styles(no_color);
 
     // Every print function checks this from now on.
     if (quiet)
