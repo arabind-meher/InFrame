@@ -6,6 +6,21 @@
 
 #include <windows.h>
 
+#include <cstdlib>
+
+// The console's code page before we switched it; it belongs to the window, not to us.
+static UINT original_code_page = 0;
+
+static void restore_code_page() { SetConsoleOutputCP(original_code_page); }
+
+void init_utf8() {
+    original_code_page = GetConsoleOutputCP();
+    SetConsoleOutputCP(CP_UTF8);
+
+    // Runs when main returns, so the window isn't left in UTF-8 for other programs.
+    std::atexit(restore_code_page);
+}
+
 // Off until init_styles finds a console that can show colour.
 static bool out_color = false;
 static bool err_color = false;

@@ -7,14 +7,16 @@
 #include <stdexcept>
 #include <string_view>
 
+#include "console.h"
+
 // Project root, passed in by CMake (INFRAME_ROOT); backslashes, so joined paths match.
 static std::filesystem::path project_root() {
     return std::filesystem::path(INFRAME_ROOT).make_preferred();
 }
 
-// Error that names the config file.
+// Error that names the config file (display_path: UTF-8, never throws on unusual names).
 static std::runtime_error config_error(const std::filesystem::path& file, const std::string& msg) {
-    return std::runtime_error("Config file " + file.string() + ": " + msg);
+    return std::runtime_error("Config file " + display_path(file) + ": " + msg);
 }
 
 // JSON text is UTF-8; u8string keeps non-English folder names correct on Windows.

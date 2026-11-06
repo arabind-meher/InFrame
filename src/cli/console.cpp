@@ -37,7 +37,19 @@ std::string display_path(const std::filesystem::path& path) {
     // make_preferred changes the path itself, so work on a copy.
     std::filesystem::path shown = path;
     shown.make_preferred();
-    return shown.string();
+
+    // UTF-8 bytes; string() would use the ANSI code page and throw on e.g. Hindi names.
+    std::u8string utf8 = shown.u8string();
+    return std::string(utf8.begin(), utf8.end());
+}
+
+// Characters, not bytes: UTF-8 continuation bytes (10xxxxxx) aren't counted.
+static size_t text_width(const std::string& text) {
+    size_t width = 0;
+    for (unsigned char byte : text) {
+        if ((byte & 0xC0) != 0x80) width++;
+    }
+    return width;
 }
 
 // "1 face", "2 faces": the count with the right word.
@@ -132,11 +144,11 @@ void print_results(const std::vector<PhotoResult>& photo_results,
     size_t path_width = 0;
     for (const PhotoResult& photo_result : photo_results) {
         if (shows_row(photo_result)) {
-            path_width = std::max(path_width, table_path(photo_result, album_dir).size());
+            path_width = std::max(path_width, text_width(table_path(photo_result, album_dir)));
         }
     }
 
-    // Pass 2: one aligned row per shown photo; + match, - no match (symbols come later).
+    // Pass 2: one aligned row per shown photo; ✓ match, ✗ no match.
     // Pad first, colour after: colour codes would count as width and break the columns.
     if (path_width > 0) {
         std::cout << std::endl;
@@ -150,9 +162,9 @@ void print_results(const std::vector<PhotoResult>& photo_results,
 
             // Match: green status, readable row. No match: the whole row grey.
             if (photo_result.matched) {
-                std::cout << "  " << styled(Style::Match, "+") << "  " << cells << std::endl;
+                std::cout << "  " << styled(Style::Match, "✓") << "  " << cells << std::endl;
             } else {
-                std::cout << styled(Style::Dim, "  -  " + cells) << std::endl;
+                std::cout << styled(Style::Dim, "  ✗  " + cells) << std::endl;
             }
         }
     }
@@ -193,7 +205,7 @@ void print_copy_result(const std::vector<PhotoResult>& photo_results, int copy_c
                        const OutputDirectory& output_dir) {
     int matched_count = count_matched(photo_results);
 
-    std::string copied = std::format("{} of {} to {}", copy_count, matched_count,
+    std::string copied = std::format("{} of {} → {}", copy_count, matched_count,
                                      display_path(output_dir.directory_path()));
     std::cout << label_line("Copied", copied) << std::endl;
 
@@ -220,7 +232,7 @@ void print_scan_results(const std::vector<PhotoResult>& photo_results,
         size_t path_width = 0;
         for (const PhotoResult& photo_result : photo_results) {
             if (photo_result.loaded) {
-                path_width = std::max(path_width, table_path(photo_result, album_dir).size());
+                path_width = std::max(path_width, text_width(table_path(photo_result, album_dir)));
             }
         }
 

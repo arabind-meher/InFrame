@@ -11,6 +11,9 @@
 #include "style.h"
 
 int main(int argc, char* argv[]) {
+    // First, so even --help and parse errors print in UTF-8.
+    init_utf8();
+
     cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_WARNING);
 
     // App: exactly one subcommand must be given.
@@ -52,6 +55,9 @@ int main(int argc, char* argv[]) {
 
     CLI::App* scan_command = cli.add_subcommand("scan", "List face counts and tags for an album");
     scan_command->add_option("--album", scan_options.album, "Folder of photos to scan")->required();
+
+    // Windows passes argv in the ANSI code page; re-read it as UTF-8 so any folder name works.
+    argv = cli.ensure_utf8(argv);
 
     // Parse: help exits 0, any usage mistake exits 2.
     try {
