@@ -13,6 +13,9 @@ enum class Stream { Out, Err };
 // Turns colour on for each stream that is a real console; off for all with no_color or NO_COLOR.
 void init_styles(bool no_color);
 
+// True if the stream is a real console (not piped or redirected); set by init_styles.
+bool is_terminal(Stream stream);
+
 // Console shows UTF-8 (symbols, any file name); the old code page is restored at exit.
 void init_utf8();
 

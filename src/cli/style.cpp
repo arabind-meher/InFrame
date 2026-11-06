@@ -21,12 +21,15 @@ void init_utf8() {
     std::atexit(restore_code_page);
 }
 
-// Off until init_styles finds a console that can show colour.
+// Off until init_styles finds a console. Terminal and colour are apart: --no-color
+// turns colour off, but the progress bar still needs to know about the terminal.
+static bool out_terminal = false;
+static bool err_terminal = false;
 static bool out_color = false;
 static bool err_color = false;
 
 // True if the handle is a console and now understands ANSI codes; false when piped or redirected.
-static bool enable_colors(DWORD handle_id) {
+static bool setup_console(DWORD handle_id) {
     HANDLE handle = GetStdHandle(handle_id);
 
     DWORD mode = 0;
@@ -39,11 +42,15 @@ static bool enable_colors(DWORD handle_id) {
 static bool no_color_env() { return GetEnvironmentVariableW(L"NO_COLOR", nullptr, 0) > 0; }
 
 void init_styles(bool no_color) {
-    if (no_color || no_color_env()) return;
+    out_terminal = setup_console(STD_OUTPUT_HANDLE);
+    err_terminal = setup_console(STD_ERROR_HANDLE);
 
-    out_color = enable_colors(STD_OUTPUT_HANDLE);
-    err_color = enable_colors(STD_ERROR_HANDLE);
+    bool colors_allowed = !no_color && !no_color_env();
+    out_color = out_terminal && colors_allowed;
+    err_color = err_terminal && colors_allowed;
 }
+
+bool is_terminal(Stream stream) { return stream == Stream::Out ? out_terminal : err_terminal; }
 
 // ANSI code per style; 90 (grey) instead of faint, which the classic console ignores.
 static const char* code(Style style) {

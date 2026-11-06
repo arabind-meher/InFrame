@@ -106,6 +106,51 @@ void print_reference_line(const std::filesystem::path& reference_dir, int used_c
     print_info(label_line("References", std::format("{}  ({})", display_path(reference_dir), note)));
 }
 
+// Progress state, like current_verbosity: one bar at a time.
+static std::string progress_label;
+static int progress_total = 0;
+static bool progress_on = false;
+
+// One frame: \r back to the line start, 20-cell bar, count; flushed since there's no newline.
+static void draw_progress(int done) {
+    constexpr int kBarWidth = 20;
+    int filled = done * kBarWidth / progress_total;
+
+    // "█" is 3 bytes in UTF-8, so append it in a loop (std::string(n, c) takes one char).
+    std::string done_part;
+    std::string todo_part;
+    for (int i = 0; i < filled; i++) done_part += "█";
+    for (int i = filled; i < kBarWidth; i++) todo_part += "░";
+
+    std::cerr << std::format("\r{:<10} {}{}  {}/{}  ", progress_label,
+                             styled(Style::Match, done_part, Stream::Err), todo_part, done,
+                             progress_total)
+              << std::flush;
+}
+
+void progress_start(std::string_view label, int total) {
+    print_info("");
+
+    progress_label = label;
+    progress_total = total;
+    progress_on = current_verbosity != Verbosity::Quiet && is_terminal(Stream::Err) && total > 0;
+
+    if (progress_on) {
+        draw_progress(0);
+    } else {
+        print_info(std::string(label) + " album");
+    }
+}
+
+void progress_update(int done) {
+    if (progress_on) draw_progress(done);
+}
+
+void progress_finish() {
+    if (progress_on) std::cerr << std::endl;
+    progress_on = false;
+}
+
 void print_skipped_references(const std::vector<std::filesystem::path>& skipped_paths) {
     for (const std::filesystem::path& image_path : skipped_paths) {
         print_warning("Skipped reference (needs exactly one face): " + display_path(image_path));

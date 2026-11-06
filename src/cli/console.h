@@ -4,6 +4,7 @@
 
 #include <filesystem>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "output_directory.h"
@@ -43,6 +44,15 @@ void print_album_line(const std::filesystem::path& album_dir, int photo_count);
 // Header: reference folder, how many photos were used and skipped.
 void print_reference_line(const std::filesystem::path& reference_dir, int used_count,
                           int skipped_count);
+
+// Progress bar on stderr (terminal only, not quiet); a plain "<label> album" line otherwise.
+void progress_start(std::string_view label, int total);
+
+// Redraws the bar with this many photos done.
+void progress_update(int done);
+
+// Ends the bar's line.
+void progress_finish();
 
 // Prints one warning per skipped reference photo.
 void print_skipped_references(const std::vector<std::filesystem::path>& skipped_paths);
